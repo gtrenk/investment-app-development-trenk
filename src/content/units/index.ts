@@ -1,0 +1,29 @@
+import type { Lesson, LessonId, Unit, UnitId } from '@core/types'
+import { u01 } from './u01-foundations'
+import { u02 } from './u02-mechanics'
+
+/**
+ * Every authored unit, in curriculum order.
+ * Add new units here as they are written — nothing else needs to change.
+ */
+export const ALL_UNITS: Unit[] = [u01, u02].sort((a, b) => a.order - b.order)
+
+/** Every lesson across every unit, flattened in unit order then lesson order. */
+export const ALL_LESSONS: Lesson[] = ALL_UNITS.flatMap((unit) =>
+  [...unit.lessons].sort((a, b) => a.order - b.order),
+)
+
+const UNIT_BY_ID = new Map<UnitId, Unit>(ALL_UNITS.map((u) => [u.id, u]))
+const LESSON_BY_ID = new Map<LessonId, Lesson>(ALL_LESSONS.map((l) => [l.id, l]))
+
+/** Look up a unit by id, e.g. 'u01'. Returns undefined if it does not exist. */
+export function getUnit(id: UnitId): Unit | undefined {
+  return UNIT_BY_ID.get(id)
+}
+
+/** Look up a lesson by id, e.g. 'u01-l01'. Returns undefined if it does not exist. */
+export function getLesson(id: LessonId): Lesson | undefined {
+  return LESSON_BY_ID.get(id)
+}
+
+export { u01, u02 }

@@ -68,7 +68,12 @@ Almost never. Once shares are issued, they change hands between investors. Your 
           id: 'u01-l01-q1',
           prompt:
             'A company has 500,000 shares outstanding and earns $2,000,000 in profit. You own 5,000 shares. What share of that profit is economically yours?',
-          choices: ['$200', '$2,000', '$20,000', '$400,000'],
+          choices: [
+            '$200',
+            '$2,000',
+            '$20,000',
+            '$400,000',
+          ],
           answerIdx: 2,
           explain:
             'You own 5,000 / 500,000 = 1% of the company, so 1% × $2,000,000 = $20,000. The tempting wrong answer is $2,000 — that comes from dividing profit by share count ($4 per share) and forgetting to multiply by all 5,000 of your shares. Always compute your ownership fraction first, then apply it to the total.',
@@ -78,12 +83,12 @@ Almost never. Once shares are issued, they change hands between investors. Your 
           prompt:
             'You buy 20 shares of a large public company through your broker. Where does your money go?',
           choices: [
-            'To the company, to fund its operations',
-            'To the investor who sold you the shares',
-            'To the exchange, which holds it in escrow',
             'To the company, minus a fee kept by the exchange',
+            'To the company, to fund its operations',
+            'To the exchange, which holds it in escrow',
+            'To the investor who sold you the shares',
           ],
-          answerIdx: 1,
+          answerIdx: 3,
           explain:
             'Ordinary trades happen on the secondary market: shares move from one investor to another, and your cash goes to the seller. The company only receives money on the primary market — at its IPO or when it issues new shares later. Believing the company gets your cash makes buying stock feel like funding a business, which distorts how you think about price.',
         },
@@ -92,12 +97,12 @@ Almost never. Once shares are issued, they change hands between investors. Your 
           prompt:
             'A company goes bankrupt and its assets are sold off. Who has the weakest claim on the proceeds?',
           choices: [
-            'Bondholders and other lenders',
-            'Employees owed wages',
             'Common shareholders',
+            'Employees owed wages',
             'Suppliers with unpaid invoices',
+            'Bondholders and other lenders',
           ],
-          answerIdx: 2,
+          answerIdx: 0,
           explain:
             'Shareholders hold a residual claim — they are paid only after every creditor is made whole, which in most bankruptcies means nothing. Bondholders feel like the risky choice because bonds are less famous, but debt sits above equity in the capital structure. This ordering is precisely why stocks must offer higher expected returns than bonds.',
         },
@@ -105,12 +110,12 @@ Almost never. Once shares are issued, they change hands between investors. Your 
           id: 'u01-l01-q4',
           prompt: 'Which statement best describes what a share of stock is?',
           choices: [
-            'A loan you have made to the company that it must repay',
-            'A contract that entitles you to buy the company\'s products at a discount',
-            'A fractional ownership claim on the company\'s assets and future profits',
             'A government-guaranteed certificate whose value rises with inflation',
+            'A contract that entitles you to buy the company\'s products at a discount',
+            'A loan you have made to the company that it must repay',
+            'A fractional ownership claim on the company\'s assets and future profits',
           ],
-          answerIdx: 2,
+          answerIdx: 3,
           explain:
             'Equity is ownership. The tempting distractor is the loan answer — that describes a **bond**, where you are a creditor with a fixed repayment claim, not an owner. Owners have unlimited upside and can lose everything; lenders have capped upside and get paid first.',
         },
@@ -201,12 +206,12 @@ Neither. Nobody sets a stock price. The last trade prints wherever a willing buy
           id: 'u01-l02-q1',
           prompt: 'What does the "price" of a stock on your screen actually represent?',
           choices: [
+            'The price at which the most recent trade executed',
             'The price the exchange has set for the next trading session',
             'The average of all trades so far today',
-            'The price at which the most recent trade executed',
             'The value the company\'s accountants assign to one share',
           ],
-          answerIdx: 2,
+          answerIdx: 0,
           explain:
             'The quoted last price is simply the print of the most recent completed trade. The "average of all trades" answer is tempting because that number does exist — it is called VWAP and traders use it — but it is not what your ticker shows. And accounting book value is a separate concept entirely, usually far from market price.',
         },
@@ -214,12 +219,12 @@ Neither. Nobody sets a stock price. The last trade prints wherever a willing buy
           id: 'u01-l02-q2',
           prompt: 'In an order book, the "ask" is:',
           choices: [
-            'The lowest price a seller is currently willing to accept',
+            'A fee charged by the exchange per share traded',
             'The highest price a buyer is currently willing to pay',
             'The price at which the stock opened this morning',
-            'A fee charged by the exchange per share traded',
+            'The lowest price a seller is currently willing to accept',
           ],
-          answerIdx: 0,
+          answerIdx: 3,
           explain:
             'Ask = the best (lowest) offer from sellers; bid = the best (highest) offer from buyers. Mixing these up is the single most common beginner slip. Remember it from your own side: you **buy at the ask** and **sell at the bid**, which means you always cross the spread and always start slightly behind.',
         },
@@ -227,12 +232,12 @@ Neither. Nobody sets a stock price. The last trade prints wherever a willing buy
           id: 'u01-l02-q3',
           prompt: 'You buy shares on a Tuesday during regular hours. Under US T+1 settlement, when does the transaction officially settle?',
           choices: [
-            'Immediately, at the moment of the fill',
             'Wednesday (the next business day)',
+            'Immediately, at the moment of the fill',
             'Thursday (two business days later)',
             'The following Monday',
           ],
-          answerIdx: 1,
+          answerIdx: 0,
           explain:
             'The US moved from T+2 to **T+1** in May 2024, so a Tuesday trade settles Wednesday. Execution and settlement are different events: your fill is instant, but legal transfer of shares and cash happens the next business day. The T+2 answer was correct for years, which is why stale advice still repeats it.',
         },
@@ -255,10 +260,10 @@ Neither. Nobody sets a stock price. The last trade prints wherever a willing buy
           choices: [
             'Trades placed after hours are not legally binding',
             'Prices are frozen until the next open, so orders cannot fill',
-            'Volume is thin and spreads are wide, so you get worse prices',
             'Brokers are prohibited from routing retail orders after 4pm ET',
+            'Volume is thin and spreads are wide, so you get worse prices',
           ],
-          answerIdx: 2,
+          answerIdx: 3,
           explain:
             'After-hours sessions have far fewer participants, which widens the bid-ask spread and lets small orders move prices sharply. The trades are perfectly binding and perfectly legal — the problem is purely execution quality, which is exactly the kind of hidden cost this course keeps returning to.',
         },
@@ -340,12 +345,12 @@ Index *levels* are meaningless across indices — they're artifacts of history a
           id: 'u01-l03-q1',
           prompt: 'Which index is the standard benchmark professionals use for "the US stock market"?',
           choices: [
-            'The Dow Jones Industrial Average',
             'The S&P 500',
+            'The Dow Jones Industrial Average',
             'The Nasdaq Composite',
             'The VIX',
           ],
-          answerIdx: 1,
+          answerIdx: 0,
           explain:
             'The S&P 500 covers roughly 500 large-cap US companies weighted by market value, making it broad and economically representative. The Dow is famous but holds only 30 names and uses price weighting; the VIX is not an index of stocks at all — it measures expected volatility.',
         },
@@ -354,11 +359,11 @@ Index *levels* are meaningless across indices — they're artifacts of history a
           prompt: 'In a price-weighted index, which stock has the greatest influence on the index?',
           choices: [
             'The one with the largest market capitalization',
-            'The one with the most shares outstanding',
             'The one with the highest share price',
+            'The one with the most shares outstanding',
             'The one with the highest trading volume',
           ],
-          answerIdx: 2,
+          answerIdx: 1,
           explain:
             'Price weighting sums share prices, so the highest-priced stock dominates regardless of company size. Choosing "largest market cap" describes a **market-cap-weighted** index like the S&P 500 — the distinction matters because it explains why the Dow can diverge from the broader market for purely mechanical reasons.',
         },
@@ -367,12 +372,12 @@ Index *levels* are meaningless across indices — they're artifacts of history a
           prompt:
             'The Dow falls 300 points from 44,000 while the S&P 500 falls 60 points from 6,000. Which index had the larger decline?',
           choices: [
-            'The Dow, since 300 points is five times 60 points',
             'The S&P 500 — about 1.0% versus the Dow\'s roughly 0.7%',
-            'They declined equally once you adjust for the number of companies',
             'The Dow, because its components are larger companies',
+            'They declined equally once you adjust for the number of companies',
+            'The Dow, since 300 points is five times 60 points',
           ],
-          answerIdx: 1,
+          answerIdx: 0,
           explain:
             'Convert to percentages before comparing: 300 / 44,000 is about 0.7%, but 60 / 6,000 is 1.0%. The bigger point move was the smaller decline. Headlines quote points because they sound dramatic, but points depend on an index\'s arbitrary level — always divide first.',
         },
@@ -380,12 +385,12 @@ Index *levels* are meaningless across indices — they're artifacts of history a
           id: 'u01-l03-q4',
           prompt: 'The Nasdaq Composite fell 2% while the S&P 500 fell 0.7% on the same day. What is the most likely explanation?',
           choices: [
-            'The Nasdaq contains fewer companies, so it is more volatile',
-            'The Nasdaq is heavily weighted toward technology, which sold off harder that day',
-            'The Nasdaq is price-weighted, amplifying moves in expensive stocks',
             'The Nasdaq includes international stocks that traded overnight',
+            'The Nasdaq contains fewer companies, so it is more volatile',
+            'The Nasdaq is price-weighted, amplifying moves in expensive stocks',
+            'The Nasdaq is heavily weighted toward technology, which sold off harder that day',
           ],
-          answerIdx: 1,
+          answerIdx: 3,
           explain:
             'The Nasdaq Composite is market-cap weighted and dominated by large technology companies, so tech-driven days show up amplified there. It actually contains *more* companies than the S&P 500, not fewer, and it is not price-weighted — that is the Dow.',
         },
@@ -463,7 +468,12 @@ Same money, same return. Ana ends with **more than double** Ben's balance becaus
         {
           id: 'u01-l04-q1',
           prompt: 'Using the Rule of 72, roughly how long does money take to double at a 9% annual return?',
-          choices: ['4 years', '8 years', '12 years', '18 years'],
+          choices: [
+            '4 years',
+            '8 years',
+            '12 years',
+            '18 years',
+          ],
           answerIdx: 1,
           explain:
             '72 ÷ 9 = 8 years. The tempting error is dividing 72 by 9 incorrectly or reaching for 100 ÷ 9 ≈ 11. The constant is 72 precisely because it approximates the logarithmic math well for returns in the 4–12% range — it drifts a bit at extremes.',
@@ -473,12 +483,12 @@ Same money, same return. Ana ends with **more than double** Ben's balance becaus
           prompt:
             'Ana invests $10,000 at age 25 and Ben invests the same $10,000 at 35. Both earn 8% until 65 and neither adds another dollar. Roughly how do their final balances compare?',
           choices: [
+            'Ana ends with roughly double Ben\'s balance',
             'Ana ends with about 33% more, since she invested for 33% longer',
             'They end up nearly equal, because the same money earns the same rate',
-            'Ana ends with roughly double Ben\'s balance',
             'Ben ends ahead, because his money compounded over a shorter, more recent period',
           ],
-          answerIdx: 2,
+          answerIdx: 0,
           explain:
             'Ana gets 40 years of compounding (≈$217,000) versus Ben\'s 30 (≈$101,000) — more than double. The "33% more" answer is the classic linear-thinking trap: growth is exponential, so an extra 10 years at 8% adds a full doubling, not a proportional slice.',
         },
@@ -487,11 +497,11 @@ Same money, same return. Ana ends with **more than double** Ben's balance becaus
           prompt: 'Why does a seemingly small 1% annual fee matter so much over decades?',
           choices: [
             'Because brokers charge the fee on gains, not on the balance',
-            'Because the fee is deducted from every trade you place',
             'Because the fee reduces the base that compounds, and the shortfall itself compounds',
             'Because fees are taxed at a higher rate than capital gains',
+            'Because the fee is deducted from every trade you place',
           ],
-          answerIdx: 2,
+          answerIdx: 1,
           explain:
             'Every dollar taken as a fee is a dollar that never compounds again, so the gap widens exponentially — a 1% drag can cost roughly a quarter of final wealth over 30 years. The "deducted from every trade" answer confuses an ongoing expense ratio with per-trade commissions; expense ratios are charged continuously against assets.',
         },
@@ -500,12 +510,12 @@ Same money, same return. Ana ends with **more than double** Ben's balance becaus
           prompt:
             'The long-run US stock market return is often quoted as about 10% per year nominal. What does that figure mean in practice?',
           choices: [
-            'Most individual years land close to 10%',
-            'It is an average across decades; individual years vary wildly and are often negative',
-            'It is a floor guaranteed over any 10-year period',
             'It is the return after inflation and fees',
+            'Most individual years land close to 10%',
+            'It is a floor guaranteed over any 10-year period',
+            'It is an average across decades; individual years vary wildly and are often negative',
           ],
-          answerIdx: 1,
+          answerIdx: 3,
           explain:
             'The ~10% figure is a long-run average, and yearly outcomes are scattered far from it — big double-digit gains and losses are normal, and years landing near +10% are actually rare. It is also *before* inflation: the real historical figure is closer to 7%.',
         },
@@ -513,7 +523,12 @@ Same money, same return. Ana ends with **more than double** Ben's balance becaus
           id: 'u01-l04-q5',
           prompt:
             'You contribute $200/month for 30 years and end with roughly $298,000 at an 8% return. About how much of that did you actually deposit?',
-          choices: ['$72,000', '$120,000', '$226,000', '$298,000'],
+          choices: [
+            '$72,000',
+            '$120,000',
+            '$226,000',
+            '$298,000',
+          ],
           answerIdx: 0,
           explain:
             '$200 × 12 months × 30 years = $72,000 of contributions; the remaining ~$226,000 is compound growth. People typically guess much higher for the contribution share, which is exactly the intuition failure that makes compounding feel unbelievable until you run the numbers.',
@@ -640,19 +655,24 @@ It means higher **expected** returns *and* a wider range of outcomes — includi
           id: 'u01-l05-q4',
           prompt: 'You hold a single stock instead of a broad fund. How does the market reward you for that extra risk?',
           choices: [
-            'With a higher expected return proportional to the extra volatility',
-            'With a dividend premium paid by the exchange',
-            'It does not — company-specific risk is uncompensated',
             'With lower taxes on any eventual gains',
+            'With a dividend premium paid by the exchange',
+            'With a higher expected return proportional to the extra volatility',
+            'It does not — company-specific risk is uncompensated',
           ],
-          answerIdx: 2,
+          answerIdx: 3,
           explain:
             'Because that risk *could* have been diversified away for free, the market prices in no premium for bearing it. You get more variance for the same expected return — the definition of a bad trade. Only undiversifiable systematic risk earns the risk premium.',
         },
         {
           id: 'u01-l05-q5',
           prompt: 'Your portfolio drops 30%. What percentage gain is needed just to return to the starting value?',
-          choices: ['30%', 'About 37%', 'About 43%', '70%'],
+          choices: [
+            '30%',
+            'About 37%',
+            'About 43%',
+            '70%',
+          ],
           answerIdx: 2,
           explain:
             '$100 falling 30% leaves $70, and $70 must rise by $30 — that is 30/70 ≈ 43%. Answering 30% treats losses and gains as symmetric, which they are not: the bigger the drawdown the more asymmetric it becomes (a 50% loss needs a 100% gain).',
@@ -741,7 +761,12 @@ This requires being right twice, and the second call is harder than the first. M
         {
           id: 'u01-l06-q1',
           prompt: 'A broad index falls 12% from its recent high. What is this conventionally called?',
-          choices: ['A pullback', 'A correction', 'A bear market', 'A crash'],
+          choices: [
+            'A pullback',
+            'A correction',
+            'A bear market',
+            'A crash',
+          ],
           answerIdx: 1,
           explain:
             'A correction is a decline of 10% or more from the peak; a bear market requires 20%. People reach for "bear market" because 12% feels dramatic in the moment, but the labels are arithmetic, not emotional — and knowing that helps you keep perspective.',
@@ -752,10 +777,10 @@ This requires being right twice, and the second call is harder than the first. M
           choices: [
             'The dot-com bust (2000–2002)',
             'The global financial crisis (2007–2009)',
-            'The COVID crash (February–March 2020)',
             'The 2022 rate-shock bear',
+            'The COVID crash (February–March 2020)',
           ],
-          answerIdx: 2,
+          answerIdx: 3,
           explain:
             'The COVID crash took the S&P 500 down about 34% in roughly 33 days — the fastest bear market on record — and recovered within months. The GFC was deeper (about −57%) but unfolded over more than a year, showing that depth and speed are separate dimensions of a downturn.',
         },
@@ -776,12 +801,12 @@ This requires being right twice, and the second call is harder than the first. M
           id: 'u01-l06-q4',
           prompt: 'Which statement about long-run market history is best supported?',
           choices: [
-            'Broad indices have always recovered to new highs, and so have individual stocks',
             'Broad indices have historically recovered to new highs, though individual companies often never do',
+            'Broad indices have always recovered to new highs, and so have individual stocks',
             'Bear markets typically last longer than bull markets',
             'Recoveries reliably take less than a year',
           ],
-          answerIdx: 1,
+          answerIdx: 0,
           explain:
             'Diversified indices have so far gone on to new highs because failing companies are replaced by growing ones — but that survivorship does not extend to individual stocks, many of which never recover. Bulls also last far longer than bears on average, and recovery times have ranged from months (2020) to years (2000).',
         },
@@ -869,11 +894,11 @@ Not the conclusion. Efficiency is *strong*, not absolute, and the humbling data 
             'SPIVA-style research consistently finds what about professional active US large-cap fund managers over 15-year periods?',
           choices: [
             'About half beat their benchmark, as chance would predict',
-            'The large majority — around 90% — underperform their benchmark',
             'They beat the benchmark before fees but not after, roughly evenly',
+            'The large majority — around 90% — underperform their benchmark',
             'Results are too noisy to draw any conclusion',
           ],
-          answerIdx: 1,
+          answerIdx: 2,
           explain:
             'Long-horizon SPIVA data repeatedly shows roughly 90% of US large-cap active funds trailing the S&P 500. "About half" sounds statistically reasonable but ignores costs: fees and trading frictions shift the whole distribution downward, so the median active fund starts behind and stays there.',
         },
@@ -882,12 +907,12 @@ Not the conclusion. Efficiency is *strong*, not absolute, and the humbling data 
           prompt:
             'What is the "behaviour gap"?',
           choices: [
+            'The difference between a stock\'s price and its intrinsic value',
             'The difference between a fund\'s reported return and the return its investors actually earn',
             'The spread between the bid and the ask',
-            'The difference between a stock\'s price and its intrinsic value',
             'The performance difference between institutional and retail share classes',
           ],
-          answerIdx: 0,
+          answerIdx: 1,
           explain:
             'Investors tend to add money after gains and withdraw after losses, so their dollar-weighted returns trail the fund\'s time-weighted returns. The price-versus-value answer describes a different (also important) concept — the margin of safety — and the bid-ask spread is a transaction cost, not a behavioural one.',
         },
@@ -895,7 +920,12 @@ Not the conclusion. Efficiency is *strong*, not absolute, and the humbling data 
           id: 'u01-l07-q3',
           prompt:
             'The market returns 8%. An active fund charges 0.75% plus about 0.25% in trading costs. How much gross outperformance does it need just to match a 0.03% index fund?',
-          choices: ['About 0.25%', 'About 0.5%', 'About 1 percentage point', 'None — fees are paid from the fund company\'s profits'],
+          choices: [
+            'About 0.25%',
+            'About 0.5%',
+            'About 1 percentage point',
+            'None — fees are paid from the fund company\'s profits',
+          ],
           answerIdx: 2,
           explain:
             'Its total drag is roughly 1.00% versus the index fund\'s 0.03%, so it must generate about a percentage point of extra gross return to finish level. Fees are paid out of fund assets, never by the manager, which is why the cost hurdle is borne entirely by you.',
@@ -906,11 +936,11 @@ Not the conclusion. Efficiency is *strong*, not absolute, and the humbling data 
             'What did Barber and Odean\'s research on individual brokerage accounts find?',
           choices: [
             'Traders with the largest accounts performed best',
+            'Individuals outperformed institutions after adjusting for risk',
             'The most frequent traders underperformed the least active ones by a wide margin',
             'Trading frequency had no measurable effect on returns',
-            'Individuals outperformed institutions after adjusting for risk',
           ],
-          answerIdx: 1,
+          answerIdx: 2,
           explain:
             'High-turnover accounts trailed low-turnover accounts by several percentage points a year, driven by trading costs and poor selection — activity itself was the destructive variable. The "no effect" answer would only hold if trading were free and stock picks were on average correct; neither is true.',
         },
@@ -919,12 +949,12 @@ Not the conclusion. Efficiency is *strong*, not absolute, and the humbling data 
           prompt:
             'Why does the arithmetic of active management guarantee that the average active dollar underperforms after costs?',
           choices: [
-            'Because active managers are less skilled than index managers',
-            'Because index funds get preferential pricing on trades',
-            'Because all investors collectively hold the market, so the average dollar earns the market return before costs',
             'Because active funds must hold cash for redemptions',
+            'Because index funds get preferential pricing on trades',
+            'Because active managers are less skilled than index managers',
+            'Because all investors collectively hold the market, so the average dollar earns the market return before costs',
           ],
-          answerIdx: 2,
+          answerIdx: 3,
           explain:
             'This is Sharpe\'s arithmetic: since all holdings together *are* the market, the average dollar earns the market return before costs — subtracting higher costs mathematically drags the average active dollar below it. Skill is not the issue; the identity holds even if every manager is brilliant. Cash drag is a real but secondary effect.',
         },
@@ -1018,12 +1048,12 @@ Around these sit **behavioural finance** (why your own brain is the adversary) a
           prompt:
             'You have $5,000 spare, a credit card balance at 22% APR, and no emergency fund. What does the standard order of operations suggest first?',
           choices: [
-            'Open a taxable brokerage account and buy a broad index fund',
             'Pay off the 22% credit card balance',
+            'Open a taxable brokerage account and buy a broad index fund',
             'Max out a Roth IRA to lock in tax-free growth',
             'Split it evenly across all three to diversify',
           ],
-          answerIdx: 1,
+          answerIdx: 0,
           explain:
             'Eliminating 22% debt is a guaranteed, risk-free, tax-free 22% return — far above any realistic market expectation of roughly 10%. The Roth answer is tempting because tax-free growth sounds powerful, but growth on borrowed money costing 22% is negative growth.',
         },
@@ -1032,11 +1062,11 @@ Around these sit **behavioural finance** (why your own brain is the adversary) a
           prompt: 'What is the main purpose of an emergency fund for an investor?',
           choices: [
             'To earn a higher return than stocks with less risk',
-            'To satisfy brokerage account minimums',
             'To avoid being forced to sell investments at a bad time',
+            'To satisfy brokerage account minimums',
             'To qualify for margin trading',
           ],
-          answerIdx: 2,
+          answerIdx: 1,
           explain:
             'Cash reserves let you ride out job loss or a broken furnace without liquidating stocks during a downturn — protecting the compounding you have already earned. It is not there to out-earn stocks; by design it sits in low-return, low-volatility instruments.',
         },
@@ -1044,7 +1074,12 @@ Around these sit **behavioural finance** (why your own brain is the adversary) a
           id: 'u01-l08-q3',
           prompt:
             'Your employer matches 50% of contributions up to 6% of salary. On a $60,000 salary, contributing the full 6% gets you how much free money?',
-          choices: ['$900', '$1,800', '$3,600', '$5,400'],
+          choices: [
+            '$900',
+            '$1,800',
+            '$3,600',
+            '$5,400',
+          ],
           answerIdx: 1,
           explain:
             '6% of $60,000 is $3,600, and a 50% match adds half of that: $1,800. Choosing $3,600 confuses a 50% match with a dollar-for-dollar (100%) match — worth checking in your own plan document, since both structures are common.',
@@ -1054,13 +1089,13 @@ Around these sit **behavioural finance** (why your own brain is the adversary) a
           prompt: 'Which best describes the difference between fundamental and technical analysis?',
           choices: [
             'Fundamental analysis is for long-term investors; technical analysis is illegal for retail traders',
-            'Fundamental analysis estimates what a business is worth; technical analysis studies price and volume behaviour',
-            'Fundamental analysis uses charts; technical analysis uses financial statements',
             'They are competing names for the same set of valuation techniques',
+            'Fundamental analysis uses charts; technical analysis uses financial statements',
+            'Fundamental analysis estimates what a business is worth; technical analysis studies price and volume behaviour',
           ],
-          answerIdx: 1,
+          answerIdx: 3,
           explain:
-            'Fundamentals ask *what is it worth* using financial statements and valuation; technicals ask *what is price doing* using price, volume, trend, and risk management. Answer three simply reverses the two definitions — a common mix-up worth locking down before Units 3 and 8.',
+            'Fundamentals ask *what is it worth* using financial statements and valuation; technicals ask *what is price doing* using price, volume, trend, and risk management. The option that puts charts under "fundamental" and financial statements under "technical" simply reverses the two definitions — a common mix-up worth locking down before Units 3 and 8.',
         },
       ],
       cardSeeds: [
