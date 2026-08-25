@@ -18,6 +18,8 @@ export const STORAGE_KEYS = {
   game: 'tq.v1.game',
   portfolio: 'tq.v1.portfolio',
   drills: 'tq.v1.drills',
+  /** Last-known quote per symbol, so a reload (or a plane) still has prices. */
+  quotes: 'tq.v1.quotes',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

@@ -10,11 +10,16 @@ import type {
   DrillKind,
   DrillResult,
   Lesson,
+  PortfolioState,
   ProgressState,
+  Transaction,
   Unit,
 } from '@core/types'
 import { addDays } from '@core/clock'
 import { buildQueue } from '@core/srs/scheduler'
+import { positions, roundCents, roundTo } from '@core/portfolio/engine'
+import type { PriceMap } from '@core/portfolio/engine'
+import { benchmarkEquity } from '@core/portfolio/benchmark'
 import { ALL_LESSONS, ALL_UNITS } from '@content/units'
 import { emptyDay } from './useAppStore'
 import type { AppState } from './useAppStore'
@@ -110,4 +115,87 @@ export function drillTotalsByKind(history: DrillHistory): DrillKindTotals[] {
 /** How many answers carry a confidence — the calibration chart's sample size. */
 export function confidenceSampleSize(history: DrillHistory): number {
   return history.results.filter((r) => r.confidence !== undefined).length
+}
+
+// ── Portfolio ────────────────────────────────────────────────────────────────
+
+export interface PositionRow {
+  symbol: string
+  qty: number
+  avgCost: number
+  /** Mark used for the row — the quote, or the average cost when unpriced. */
+  price: number
+  marketValue: number
+  unrealizedPnl: number
+  /** Unrealized P&L as a percentage of the row's cost basis. */
+  unrealizedPct: number
+  /** Share of total equity this position represents. */
+  weightPct: number
+  /** True when no quote was available and the row is carried at cost. */
+  unpriced: boolean
+}
+
+/**
+ * One display row per open position, marked to `prices` and sorted biggest
+ * first — the order a portfolio is actually read in.
+ *
+ * A symbol with no usable quote is carried at its own average cost (matching
+ * `portfolioEquity`) and flagged `unpriced`, so the UI can say "at cost"
+ * instead of showing a fabricated 0% day.
+ */
+export function positionRows(p: PortfolioState, prices: PriceMap, equity: number): PositionRow[] {
+  const rows = positions(p).map((pos) => {
+    const quoted = prices[pos.symbol]
+    const unpriced = !(Number.isFinite(quoted) && quoted > 0)
+    const price = unpriced ? pos.avgCost : quoted
+    const marketValue = roundCents(pos.qty * price)
+    const unrealizedPnl = roundCents(marketValue - pos.costValue)
+    return {
+      symbol: pos.symbol,
+      qty: pos.qty,
+      avgCost: pos.avgCost,
+      price,
+      marketValue,
+      unrealizedPnl,
+      unrealizedPct: pos.costValue > 0 ? roundTo((unrealizedPnl / pos.costValue) * 100, 2) : 0,
+      weightPct: equity > 0 ? roundTo((marketValue / equity) * 100, 2) : 0,
+      unpriced,
+    }
+  })
+  return rows.sort((a, b) => b.marketValue - a.marketValue)
+}
+
+/** Newest transaction first — the order a history is read in. */
+export function transactionsNewestFirst(p: PortfolioState): Transaction[] {
+  return [...p.transactions].reverse()
+}
+
+/**
+ * Today's move: the change in equity since the previous snapshot.
+ * `null` until there are two points to compare — a portfolio opened today has
+ * no yesterday, and inventing one would be a lie in the headline position.
+ */
+export function dayChange(p: PortfolioState, equity: number): { abs: number; pct: number } | null {
+  if (p.snapshots.length < 2) return null
+  const prev = p.snapshots[p.snapshots.length - 2]
+  if (!(prev.equity > 0)) return null
+  return {
+    abs: roundCents(equity - prev.equity),
+    pct: roundTo((equity / prev.equity - 1) * 100, 2),
+  }
+}
+
+/**
+ * How far ahead of (or behind) the shadow index the account is, in percentage
+ * points of total return. `null` until the benchmark has been initialised and
+ * SPY can be priced.
+ */
+export function vsBenchmarkPct(p: PortfolioState, equity: number, spyPrice: number): number | null {
+  const bench = benchmarkEquity(p, spyPrice)
+  if (bench === null || !(bench > 0)) return null
+  const start = p.snapshots[0]?.equity ?? equity
+  if (!(start > 0)) return null
+  const benchStart = p.snapshots[0]?.benchmarkEquity ?? bench
+  if (!(benchStart > 0)) return null
+  return roundTo((equity / start - bench / benchStart) * 100, 2)
 }

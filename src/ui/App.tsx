@@ -14,6 +14,8 @@ import { DrillsScreen } from './screens/DrillsScreen'
 import { DrillPlayer } from './screens/DrillPlayer'
 import { DrillStatsScreen } from './screens/DrillStatsScreen'
 import { PortfolioScreen } from './screens/PortfolioScreen'
+import { TradeScreen } from './screens/TradeScreen'
+import { PortfolioSync } from './data/usePortfolio'
 
 function Splash() {
   return (
@@ -85,9 +87,11 @@ export default function App() {
           <Route path="/lesson/:id" element={<LessonPlayer />} />
           <Route path="/drill" element={<DrillPlayer />} />
           <Route path="/drill-stats" element={<DrillStatsScreen />} />
+          <Route path="/trade" element={<TradeScreen />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <PortfolioSync />
       <CelebrationOverlay />
     </div>
   )

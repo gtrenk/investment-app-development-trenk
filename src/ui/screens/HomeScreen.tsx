@@ -14,6 +14,9 @@ import {
   todayQueue,
 } from '@state/selectors'
 import { KIND_COPY } from '@ui/drills/labels'
+import { vsBenchmarkPct } from '@state/selectors'
+import { usePortfolioValuation } from '@ui/data/usePortfolio'
+import { money, pnlTone, signedPct } from '@ui/format'
 import { XPBar } from '@ui/components/XPBar'
 import { StreakFlame } from '@ui/components/StreakFlame'
 import { ProgressBar } from '@ui/components/ProgressBar'
@@ -73,6 +76,50 @@ function TaskRow({ done, label, detail, soon = false, to }: TaskProps) {
         <div className="flex items-center gap-3 py-2.5">{body}</div>
       )}
     </li>
+  )
+}
+
+/**
+ * Compact paper-account tile. Hidden until the benchmark exists — before the
+ * first trade there is no equity curve to summarise and the Portfolio tab's own
+ * empty state does that job better.
+ */
+function PortfolioTile() {
+  const { portfolio, equity, spyPrice, loading } = usePortfolioValuation()
+  if (portfolio.benchmarkUnits === null) return null
+
+  const vsSpy = spyPrice === null ? null : vsBenchmarkPct(portfolio, equity.equity, spyPrice)
+
+  return (
+    <Link
+      to="/portfolio"
+      data-testid="home-portfolio-tile"
+      className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3.5 active:bg-slate-800/60"
+    >
+      <span aria-hidden className="text-2xl leading-none">
+        💼
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] uppercase tracking-widest text-slate-500">Paper account</p>
+        <p
+          className="text-lg font-extrabold tabular-nums text-white"
+          data-testid="home-portfolio-equity"
+        >
+          {loading ? '—' : money(equity.equity)}
+        </p>
+      </div>
+      {vsSpy !== null && (
+        <div className="shrink-0 text-right">
+          <p className={`text-sm font-bold tabular-nums ${pnlTone(vsSpy)}`} data-testid="home-portfolio-delta">
+            {signedPct(vsSpy)}
+          </p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">vs SPY</p>
+        </div>
+      )}
+      <span aria-hidden className="shrink-0 text-slate-600">
+        →
+      </span>
+    </Link>
   )
 }
 
@@ -186,6 +233,8 @@ export function HomeScreen() {
           </Link>
         )}
       </section>
+
+      <PortfolioTile />
 
       <section>
         <div className="mb-2 flex items-baseline justify-between">
