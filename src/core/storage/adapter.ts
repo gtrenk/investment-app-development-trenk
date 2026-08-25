@@ -1,0 +1,38 @@
+// ─── Persistence boundary ────────────────────────────────────────────────────
+// core/ never touches IndexedDB directly. It talks to this interface, which
+// src/platform implements (idb-keyval on web, AsyncStorage/MMKV on RN later).
+
+export interface StorageAdapter {
+  get<T>(key: string): Promise<T | undefined>
+  set<T>(key: string, value: T): Promise<void>
+  del(key: string): Promise<void>
+}
+
+/** Bump when a persisted shape changes incompatibly; migrations key off this. */
+export const SCHEMA_VERSION = 1
+
+/** Versioned storage keys — the whole persisted surface of the app. */
+export const STORAGE_KEYS = {
+  progress: 'tq.v1.progress',
+  srs: 'tq.v1.srs',
+  game: 'tq.v1.game',
+  portfolio: 'tq.v1.portfolio',
+} as const
+
+export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]
+
+/** In-memory adapter — used by tests and as a fallback when IDB is unavailable. */
+export function createMemoryStorage(): StorageAdapter {
+  const map = new Map<string, unknown>()
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      return map.get(key) as T | undefined
+    },
+    async set<T>(key: string, value: T): Promise<void> {
+      map.set(key, value)
+    },
+    async del(key: string): Promise<void> {
+      map.delete(key)
+    },
+  }
+}
