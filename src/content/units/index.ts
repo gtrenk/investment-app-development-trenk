@@ -7,12 +7,18 @@ import { u05 } from './u05-ratios'
 import { u06 } from './u06-valuation-multiples'
 import { u07 } from './u07-valuation-dcf'
 import { u08 } from './u08-technical-foundations'
+import { u09 } from './u09-chart-patterns'
+import { u10 } from './u10-indicators'
+import { u11 } from './u11-risk'
+import { u12 } from './u12-behavioral'
+import { u13 } from './u13-strategy'
+import { u14 } from './u14-expert'
 
 /**
  * Every authored unit, in curriculum order.
  * Add new units here as they are written — nothing else needs to change.
  */
-export const ALL_UNITS: Unit[] = [u01, u02, u03, u04, u05, u06, u07, u08].sort((a, b) => a.order - b.order)
+export const ALL_UNITS: Unit[] = [u01, u02, u03, u04, u05, u06, u07, u08, u09, u10, u11, u12, u13, u14].sort((a, b) => a.order - b.order)
 
 /** Every lesson across every unit, flattened in unit order then lesson order. */
 export const ALL_LESSONS: Lesson[] = ALL_UNITS.flatMap((unit) =>
@@ -32,4 +38,4 @@ export function getLesson(id: LessonId): Lesson | undefined {
   return LESSON_BY_ID.get(id)
 }
 
-export { u01, u02, u03, u04, u05, u06, u07, u08 }
+export { u01, u02, u03, u04, u05, u06, u07, u08, u09, u10, u11, u12, u13, u14 }
