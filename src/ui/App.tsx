@@ -16,6 +16,7 @@ import { DrillStatsScreen } from './screens/DrillStatsScreen'
 import { PortfolioScreen } from './screens/PortfolioScreen'
 import { TradeScreen } from './screens/TradeScreen'
 import { PortfolioSync } from './data/usePortfolio'
+import { LimitOrderSync } from './data/useOrders'
 
 function Splash() {
   return (
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <PortfolioSync />
+      <LimitOrderSync />
       <CelebrationOverlay />
     </div>
   )

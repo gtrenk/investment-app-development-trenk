@@ -19,6 +19,8 @@ npm run dev          # then open the LAN URL on your phone
 
 To install on your phone: open the app in the browser → Share → **Add to Home Screen**. Everything except live quotes works fully offline.
 
+Putting it on a real URL — static hosting, the quote proxy, real market data, PWA update behaviour: see **[DEPLOY.md](DEPLOY.md)**.
+
 ## Scripts
 
 | Command | What it does |
@@ -53,8 +55,8 @@ Rule: `ui/` imports `core/`; `core/` never imports `ui/`. All date math flows th
 
 ## Curriculum
 
-14 planned units (~118 lessons), unlocking sequentially at 80% completion:
+14 units unlocking sequentially at 80% completion (the technical track branches after Unit 2):
 
-1. ✅ Market Foundations · 2. ✅ Market Mechanics · 3. ✅ Income Statement · 4. ✅ Balance Sheet & Cash Flow · 5. ✅ Ratios & Financial Health · 6–7. Valuation (Multiples, DCF) · 8–10. Technical Analysis (Foundations, Patterns, Indicators) · 11. Risk & Position Sizing · 12. Behavioral Finance · 13. Strategy & Synthesis · 14. Expert Topics
+All 14 units are authored (134 lessons): Market Foundations · Market Mechanics · Income Statement · Balance Sheet & Cash Flow · Ratios & Financial Health · Valuation I: Multiples · Valuation II: DCF · Technical Foundations · Chart Patterns · Indicators · Risk & Position Sizing · Behavioral Finance · Strategy & Synthesis · Expert Topics
 
 > Educational project for personal use. Nothing in this app is financial advice.

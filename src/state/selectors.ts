@@ -16,6 +16,7 @@ import type {
   Unit,
 } from '@core/types'
 import { addDays } from '@core/clock'
+import { DRILL_ROTATION_3 } from '@core/drills/engine'
 import { buildQueue } from '@core/srs/scheduler'
 import { positions, roundCents, roundTo } from '@core/portfolio/engine'
 import type { PriceMap } from '@core/portfolio/engine'
@@ -103,9 +104,16 @@ export interface DrillKindTotals {
   correct: number
 }
 
-/** Answered/correct counts per drill kind, in a stable order for the stats page. */
+/**
+ * Answered/correct counts per drill kind, in a stable order for the stats page.
+ *
+ * The list is the full rotation, not the kinds that happen to appear in the
+ * history: a kind with no answers yet must still show as a row ("not played
+ * yet"), or the section silently shrinks and the learner never learns the third
+ * kind exists.
+ */
 export function drillTotalsByKind(history: DrillHistory): DrillKindTotals[] {
-  const kinds: DrillKind[] = ['pattern', 'whatnext']
+  const kinds: DrillKind[] = [...DRILL_ROTATION_3]
   return kinds.map((kind) => {
     const mine = history.results.filter((r) => r.kind === kind)
     return { kind, answered: mine.length, correct: mine.filter((r) => r.correct).length }

@@ -20,6 +20,10 @@ export const STORAGE_KEYS = {
   drills: 'tq.v1.drills',
   /** Last-known quote per symbol, so a reload (or a plane) still has prices. */
   quotes: 'tq.v1.quotes',
+  /** The limit-order book: resting orders plus the ones already resolved. */
+  orders: 'tq.v1.orders',
+  /** Watchlist — a plain array of symbols, in the order they were starred. */
+  watchlist: 'tq.v1.watchlist',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

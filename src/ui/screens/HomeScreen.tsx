@@ -190,7 +190,11 @@ export function HomeScreen() {
                 ? todayDrill && todayDrill.correct
                   ? `${KIND_COPY[todayDrill.kind].title} — called it`
                   : `${todayDrill ? KIND_COPY[todayDrill.kind].title : 'Drill'} — logged`
-                : `${KIND_COPY[drillKindForDay(today)].title} — one chart, one call`
+                : // The rotation is three kinds wide now, and a statement drill
+                  // is not "one chart" — announce the right one either way.
+                  drillKindForDay(today, true) === 'financials'
+                  ? `${KIND_COPY.financials.title} — one company, one question`
+                  : `${KIND_COPY[drillKindForDay(today, true)].title} — one chart, one call`
             }
           />
         </ul>

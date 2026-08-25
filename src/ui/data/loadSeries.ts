@@ -54,6 +54,52 @@ export interface SeriesQuery {
   error: string | null
 }
 
+export interface SeriesMapQuery {
+  /** Loaded series keyed by symbol. Symbols that failed are simply absent. */
+  series: Record<string, OhlcvSeries>
+  /** True until every requested symbol has resolved or failed. */
+  loading: boolean
+}
+
+/**
+ * Load several symbols at once — the shape the limit-order replay and the
+ * watchlist both need. Failures are swallowed per symbol (a missing file leaves
+ * that entry out) because both callers have a sane answer for "no bars yet":
+ * the replay leaves the order resting, and the watchlist shows a dash.
+ */
+export function useSeriesMap(symbols: readonly string[]): SeriesMapQuery {
+  const key = [...symbols].join(',')
+  const [state, setState] = useState<SeriesMapQuery>({ series: {}, loading: key !== '' })
+
+  useEffect(() => {
+    const wanted = key.split(',').filter(Boolean)
+    if (wanted.length === 0) {
+      setState({ series: {}, loading: false })
+      return
+    }
+    let live = true
+    setState({ series: {}, loading: true })
+    void Promise.all(
+      wanted.map((s) =>
+        loadSeries(s).then(
+          (series) => [s, series] as const,
+          () => [s, null] as const,
+        ),
+      ),
+    ).then((entries) => {
+      if (!live) return
+      const out: Record<string, OhlcvSeries> = {}
+      for (const [symbol, series] of entries) if (series) out[symbol] = series
+      setState({ series: out, loading: false })
+    })
+    return () => {
+      live = false
+    }
+  }, [key])
+
+  return state
+}
+
 /**
  * React binding for `loadSeries`. `symbol` may be null while the caller is
  * still deciding what to show; the hook then simply idles.

@@ -47,6 +47,13 @@ import {
   benchmarkEquity,
   initBenchmark,
 } from '@core/portfolio/benchmark'
+import {
+  cancelOrder,
+  evaluateLimitOrders,
+  limitOrderIssue,
+  newLimitOrder,
+} from '@core/portfolio/limitOrders'
+import type { LimitOrder, SeriesMap } from '@core/portfolio/limitOrders'
 import { isGoalMet, newStreakState, recordGoalMet } from '@core/gamification/streak'
 import { evaluateBadges } from '@core/gamification/badges'
 import { STORAGE_KEYS, createMemoryStorage } from '@core/storage/adapter'
@@ -233,7 +240,34 @@ export interface TradeRequest {
   /** The price the confirm screen showed — the fill is always at what was seen. */
   price: number
   note?: string
+  /**
+   * ISO timestamp of the fill. Market orders leave this out and get "now"; a
+   * limit order that filled three weeks ago passes the date of the bar that
+   * filled it, so the history reads as what actually happened.
+   */
+  at?: string
+  /**
+   * The app wrote this trade, not the learner. Suppresses the journal-note XP:
+   * "Limit order fill" is bookkeeping, and paying 5 XP for it would turn a
+   * resting order into an XP faucet.
+   */
+  automated?: boolean
 }
+
+/** What the Trade screen sends when it rests an order instead of filling one. */
+export interface LimitOrderRequest {
+  symbol: string
+  side: 'buy' | 'sell'
+  qty: number
+  limitPrice: number
+}
+
+export type LimitOrderOutcome =
+  | { ok: true; order: LimitOrder }
+  | { ok: false; error: string }
+
+/** Note stamped on every transaction that came from a resting order. */
+export const LIMIT_FILL_NOTE = 'Limit order fill'
 
 export type TradeOutcome =
   | {
@@ -253,6 +287,14 @@ export interface AppState {
   game: GameState
   drillHistory: DrillHistory
   portfolio: PortfolioState
+  /**
+   * The limit-order book. Resting orders are the ones with `status: 'open'`;
+   * filled, cancelled and expired orders stay in the array so a fill can never
+   * be replayed twice and the learner can see that an order died unfilled.
+   */
+  openOrders: LimitOrder[]
+  /** Starred symbols, in the order they were starred. */
+  watchlist: string[]
   pendingCelebrations: Celebration[]
 
   hydrate: () => Promise<void>
@@ -262,6 +304,11 @@ export interface AppState {
   finishReviewSession: (cardCount: number) => void
   recordDrillResult: (result: DrillResult) => void
   placeTrade: (req: TradeRequest) => TradeOutcome
+  placeLimitOrder: (req: LimitOrderRequest) => LimitOrderOutcome
+  cancelLimitOrder: (id: string) => void
+  /** Replay resting orders against bundled bars and fill the ones that crossed. */
+  settleLimitOrders: (seriesBySymbol: SeriesMap) => void
+  toggleWatchlist: (symbol: string) => void
   ensureBenchmark: (spyPrice: number) => void
   snapshotToday: (prices: PriceMap, spySeries?: OhlcvSeries | null) => void
   dismissCelebration: () => void
@@ -283,6 +330,19 @@ function persistPortfolio(portfolio: PortfolioState): void {
   void storage.set(STORAGE_KEYS.portfolio, portfolio)
 }
 
+function persistOrders(orders: LimitOrder[]): void {
+  void storage.set(STORAGE_KEYS.orders, orders)
+}
+
+function persistWatchlist(watchlist: string[]): void {
+  void storage.set(STORAGE_KEYS.watchlist, watchlist)
+}
+
+/** Sequential order id: `lo-0001`, `lo-0002`, … */
+function nextOrderId(orders: LimitOrder[]): string {
+  return `lo-${String(orders.length + 1).padStart(4, '0')}`
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   ready: false,
   progress: emptyProgress(),
@@ -290,16 +350,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   game: emptyGame(),
   drillHistory: emptyDrills(),
   portfolio: newPortfolio(),
+  openOrders: [],
+  watchlist: [],
   pendingCelebrations: [],
 
   async hydrate() {
     if (get().ready) return
-    const [progress, srs, game, drills, portfolio] = await Promise.all([
+    const [progress, srs, game, drills, portfolio, orders, watchlist] = await Promise.all([
       storage.get<ProgressState>(STORAGE_KEYS.progress),
       storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
       storage.get<GameState>(STORAGE_KEYS.game),
       storage.get<DrillHistory>(STORAGE_KEYS.drills),
       storage.get<PortfolioState>(STORAGE_KEYS.portfolio),
+      storage.get<LimitOrder[]>(STORAGE_KEYS.orders),
+      storage.get<string[]>(STORAGE_KEYS.watchlist),
     ])
     set({
       progress: { ...emptyProgress(), ...(progress ?? {}) },
@@ -309,6 +373,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Spread over a fresh portfolio so a record written by an older build is
       // missing fields rather than fatal.
       portfolio: { ...newPortfolio(), ...(portfolio ?? {}) },
+      openOrders: Array.isArray(orders) ? orders : [],
+      watchlist: Array.isArray(watchlist) ? watchlist.filter((s) => typeof s === 'string') : [],
       ready: true,
     })
   },
@@ -449,7 +515,7 @@ export const useAppStore = create<AppState>((set, get) => ({
    */
   placeTrade(req) {
     const state = get()
-    const ts = appClock.now()
+    const ts = req.at ?? appClock.now()
     const today = appClock.today()
     const note = req.note?.trim()
     const input = {
@@ -468,7 +534,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const portfolio = result.state
     const out: Celebration[] = []
-    const xp = note ? XP_JOURNAL_NOTE : 0
+    const xp = note && !req.automated ? XP_JOURNAL_NOTE : 0
     let game = awardXp(state.game, xp, today, out)
     game = settle(state.progress, state.srs, state.drillHistory, portfolio, game, today, out)
 
@@ -486,6 +552,99 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...('realized' in result ? { realized: result.realized as number } : {}),
       xp,
     }
+  },
+
+  /**
+   * Rest a limit order. Nothing is reserved and nothing is charged — the order
+   * is a note to the app, and the money only moves if a later bar crosses it.
+   */
+  placeLimitOrder(req) {
+    const state = get()
+    const input = {
+      id: nextOrderId(state.openOrders),
+      symbol: req.symbol,
+      side: req.side,
+      qty: req.qty,
+      limitPrice: req.limitPrice,
+      placedAt: appClock.today(),
+    }
+    const issue = limitOrderIssue(input)
+    if (issue) return { ok: false, error: issue }
+
+    const order = newLimitOrder(input)
+    const openOrders = [...state.openOrders, order]
+    set({ openOrders })
+    persistOrders(openOrders)
+    return { ok: true, order }
+  },
+
+  cancelLimitOrder(id) {
+    const state = get()
+    const openOrders = cancelOrder(state.openOrders, id)
+    if (openOrders === state.openOrders) return
+    set({ openOrders })
+    persistOrders(openOrders)
+  },
+
+  /**
+   * Replay the book against the bars that have printed since each order was
+   * placed, and push the fills through the ordinary `placeTrade` path so a
+   * resting order and a market order end up indistinguishable in the ledger —
+   * same lots, same FIFO, same badge settle. Only the note and the timestamp
+   * say where the fill came from.
+   *
+   * A fill the engine refuses (the cash was spent elsewhere while the order
+   * rested) cancels the order rather than retrying it on every app open. That
+   * is the honest outcome: a broker would have rejected it too.
+   */
+  settleLimitOrders(seriesBySymbol) {
+    const { orders, fills, changed } = evaluateLimitOrders(
+      get().openOrders,
+      seriesBySymbol,
+      appClock.today(),
+    )
+    if (!changed) return
+
+    // Write the resolved book first: `placeTrade` reads and replaces state, and
+    // a fill must never be evaluated twice even if one of them throws.
+    set({ openOrders: orders })
+
+    const rejected = new Set<string>()
+    for (const fill of fills) {
+      const outcome = get().placeTrade({
+        symbol: fill.symbol,
+        side: fill.side,
+        qty: fill.qty,
+        price: fill.price,
+        note: LIMIT_FILL_NOTE,
+        // Midday UTC so the stamp reads as the fill's own session in any zone.
+        at: `${fill.date}T16:00:00.000Z`,
+        automated: true,
+      })
+      if (!outcome.ok) rejected.add(fill.orderId)
+    }
+
+    const settled = rejected.size
+      ? get().openOrders.map((o) =>
+          rejected.has(o.id)
+            ? { ...o, status: 'cancelled' as const, filledAt: undefined, fillPrice: undefined }
+            : o,
+        )
+      : get().openOrders
+    if (rejected.size) set({ openOrders: settled })
+    persistOrders(settled)
+  },
+
+  /** Star or unstar a symbol. Order of insertion is the display order. */
+  toggleWatchlist(symbol) {
+    const s = String(symbol ?? '').trim().toUpperCase()
+    if (!s) return
+    const state = get()
+    const watchlist = state.watchlist.includes(s)
+      ? state.watchlist.filter((x) => x !== s)
+      : [...state.watchlist, s]
+    set({ watchlist })
+    persistWatchlist(watchlist)
   },
 
   /**
@@ -547,13 +706,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async resetAll() {
     const next = { progress: emptyProgress(), srs: {}, game: emptyGame(), drillHistory: emptyDrills() }
-    set({ ...next, portfolio: newPortfolio(), pendingCelebrations: [] })
+    set({
+      ...next,
+      portfolio: newPortfolio(),
+      openOrders: [],
+      watchlist: [],
+      pendingCelebrations: [],
+    })
     await Promise.all([
       storage.del(STORAGE_KEYS.progress),
       storage.del(STORAGE_KEYS.srs),
       storage.del(STORAGE_KEYS.game),
       storage.del(STORAGE_KEYS.drills),
       storage.del(STORAGE_KEYS.portfolio),
+      storage.del(STORAGE_KEYS.orders),
+      storage.del(STORAGE_KEYS.watchlist),
     ])
   },
 }))

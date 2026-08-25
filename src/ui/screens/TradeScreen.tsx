@@ -17,6 +17,8 @@ import {
   sharesHeld,
 } from '@core/portfolio/engine'
 import { XP_JOURNAL_NOTE } from '@core/gamification/xp'
+import { LIMIT_ORDER_TTL_DAYS } from '@core/portfolio/limitOrders'
+import type { LimitOrder } from '@core/portfolio/limitOrders'
 import type { Transaction } from '@core/types'
 import { useAppStore } from '@state/useAppStore'
 import type { TradeOutcome } from '@state/useAppStore'
@@ -25,6 +27,7 @@ import { useSeries } from '@ui/data/loadSeries'
 import { usePortfolioValuation } from '@ui/data/usePortfolio'
 import { TRADABLE_SYMBOLS, searchUniverse, symbolName } from '@ui/data/universe'
 import { CandleChart, ATTRIBUTION } from '@ui/charts/CandleChart'
+import { StarButton } from '@ui/components/StarButton'
 import { money, pct, pnlTone, qty as fmtQty, shortDate, signedMoney } from '@ui/format'
 
 /** Bars of history on the ticket's mini chart — about six months. */
@@ -32,6 +35,7 @@ const PREVIEW_BARS = 120
 
 type Side = 'buy' | 'sell'
 type Mode = 'shares' | 'dollars'
+type OrderType = 'market' | 'limit'
 
 // ── Symbol picker ────────────────────────────────────────────────────────────
 
@@ -65,29 +69,33 @@ function SymbolPicker({ onPick }: { onPick: (symbol: string) => void }) {
             const q = quotes[u.symbol]
             const held = sharesHeld(portfolio, u.symbol)
             return (
-              <li key={u.symbol}>
+              // The star has to sit *beside* the tile in the DOM, not inside it:
+              // a button nested in a button is invalid HTML and taps land on the
+              // wrong target.
+              <li key={u.symbol} className="relative">
                 <button
                   type="button"
                   data-testid="symbol-tile"
                   data-symbol={u.symbol}
                   onClick={() => onPick(u.symbol)}
-                  className="flex min-h-[76px] w-full flex-col items-start justify-between rounded-2xl border border-slate-800 bg-slate-900/70 px-3 py-2.5 text-left active:bg-slate-800"
+                  className="flex min-h-[76px] w-full flex-col items-start justify-between rounded-2xl border border-slate-800 bg-slate-900/70 py-2.5 pl-3 pr-11 text-left active:bg-slate-800"
                 >
-                  <div className="flex w-full items-baseline justify-between gap-1">
-                    <span className="text-sm font-extrabold tracking-tight text-slate-100">
-                      {u.symbol}
+                  <span className="text-sm font-extrabold tracking-tight text-slate-100">
+                    {u.symbol}
+                  </span>
+                  <span className="w-full truncate text-[11px] text-slate-500">{u.name}</span>
+                  <span className="mt-0.5 flex items-baseline gap-1.5">
+                    <span className="text-xs font-semibold tabular-nums text-slate-300">
+                      {q ? money(q.price) : '···'}
                     </span>
                     {held > 0 && (
                       <span className="rounded bg-emerald-500/15 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">
                         held
                       </span>
                     )}
-                  </div>
-                  <span className="w-full truncate text-[11px] text-slate-500">{u.name}</span>
-                  <span className="mt-0.5 text-xs font-semibold tabular-nums text-slate-300">
-                    {q ? money(q.price) : '···'}
                   </span>
                 </button>
+                <StarButton symbol={u.symbol} className="absolute right-1 top-1" />
               </li>
             )
           })}
@@ -169,15 +177,59 @@ function SuccessPanel({
   )
 }
 
+// ── Resting-order summary ────────────────────────────────────────────────────
+
+function RestingPanel({ order, onAgain }: { order: LimitOrder; onAgain: () => void }) {
+  return (
+    <div className="space-y-4" data-testid="order-resting" data-order-id={order.id}>
+      <div className="rounded-3xl border border-sky-500/40 bg-sky-500/10 px-5 py-6 text-center">
+        <p aria-hidden className="text-5xl">
+          ⏳
+        </p>
+        <p className="mt-3 text-lg font-extrabold text-white">Order resting</p>
+        <p className="mt-1 text-sm tabular-nums text-slate-300" data-testid="resting-summary">
+          {order.side === 'buy' ? 'Buy' : 'Sell'} {fmtQty(order.qty)} {order.symbol} at{' '}
+          {money(order.limitPrice)}
+        </p>
+        <p className="mt-3 text-[12px] leading-snug text-slate-400">
+          Nothing has been bought and no cash has moved. The app checks this order against the daily
+          bars every time you open it, and cancels it after {LIMIT_ORDER_TTL_DAYS} days if the price
+          never comes to you.
+        </p>
+      </div>
+
+      <Link
+        to="/portfolio"
+        data-testid="resting-portfolio"
+        className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
+      >
+        Back to Portfolio
+      </Link>
+      <button
+        type="button"
+        onClick={onAgain}
+        data-testid="success-again"
+        className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 font-bold text-slate-100 active:bg-slate-800"
+      >
+        Place another order
+      </button>
+    </div>
+  )
+}
+
 // ── Ticket ───────────────────────────────────────────────────────────────────
 
 function TradeTicket({ symbol }: { symbol: string }) {
   const placeTrade = useAppStore((s) => s.placeTrade)
+  const placeLimitOrder = useAppStore((s) => s.placeLimitOrder)
   const { portfolio, prices, equity } = usePortfolioValuation()
   const { quotes } = useQuotes([symbol])
   const { series } = useSeries(symbol)
 
   const [side, setSide] = useState<Side>('buy')
+  const [orderType, setOrderType] = useState<OrderType>('market')
+  const [limitInput, setLimitInput] = useState('')
+  const [resting, setResting] = useState<LimitOrder | null>(null)
   const [mode, setMode] = useState<Mode>('dollars')
   const [amount, setAmount] = useState('')
   /**
@@ -203,13 +255,24 @@ function TradeTicket({ symbol }: { symbol: string }) {
   }, [series])
 
   // ── Order maths ──
+  const isLimit = orderType === 'limit'
+  const typedLimit = Number(limitInput)
+  const limitOk = isLimit && Number.isFinite(typedLimit) && typedLimit > 0
+  /**
+   * The price the order is sized against. A market order is sized on the quote
+   * it will fill at; a limit order is sized on the limit, because "$5,000 of
+   * AAPL at $196" has to mean 25.5 shares at $196 — not 23 shares bought at
+   * today's price and then re-priced.
+   */
+  const execPrice = isLimit ? (limitOk ? typedLimit : 0) : price
+
   const typed = Number(amount)
-  const typedOk = Number.isFinite(typed) && typed > 0 && price > 0
+  const typedOk = Number.isFinite(typed) && typed > 0 && execPrice > 0
   // In dollar mode the quantity is deliberately *not* rounded: rounding it to
   // four decimals first would make "$10,000 of AAPL" cost $9,999.99.
-  const qty = !typedOk ? 0 : mode === 'shares' ? (exact ?? typed) : typed / price
-  const valid = qty > 0 && price > 0
-  const notional = Math.round(qty * price * 100) / 100
+  const qty = !typedOk ? 0 : mode === 'shares' ? (exact ?? typed) : typed / execPrice
+  const valid = qty > 0 && execPrice > 0
+  const notional = Math.round(qty * execPrice * 100) / 100
   const cashAfter = Math.round((portfolio.cash + (side === 'buy' ? -notional : notional)) * 100) / 100
 
   const heldValue = held * (prices[symbol] ?? price)
@@ -221,7 +284,25 @@ function TradeTicket({ symbol }: { symbol: string }) {
         : 0
   const concentrated = side === 'buy' && weightAfter >= CONCENTRATION_WARN_PCT
 
+  /**
+   * A limit on the wrong side of the market is legal and occasionally deliberate
+   * (a "take whatever is there" order), but it is far more often a typo, and the
+   * consequence — filling at the very next open — is worth one line of warning.
+   */
+  const crossesNow =
+    limitOk && price > 0 && (side === 'buy' ? typedLimit >= price : typedLimit <= price)
+
   function confirm() {
+    if (isLimit) {
+      const outcome = placeLimitOrder({ symbol, side, qty, limitPrice: typedLimit })
+      if (!outcome.ok) {
+        setError(outcome.error)
+        return
+      }
+      setError(null)
+      setResting(outcome.order)
+      return
+    }
     const outcome = placeTrade({ symbol, side, qty, price, note })
     if (!outcome.ok) {
       setError(outcome.error)
@@ -233,6 +314,7 @@ function TradeTicket({ symbol }: { symbol: string }) {
 
   function reset() {
     setDone(null)
+    setResting(null)
     setAmount('')
     setExact(null)
     setNote('')
@@ -250,6 +332,8 @@ function TradeTicket({ symbol }: { symbol: string }) {
       />
     )
   }
+
+  if (resting) return <RestingPanel order={resting} onAgain={reset} />
 
   const chips: { label: string; value: number }[] =
     side === 'sell'
@@ -274,8 +358,9 @@ function TradeTicket({ symbol }: { symbol: string }) {
     <div className="space-y-4" data-testid="trade-ticket" data-symbol={symbol}>
       {/* ── Quote ── */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <StarButton symbol={symbol} className="-ml-2 -mt-1 shrink-0" />
+          <div className="min-w-0 flex-1">
             <p className="text-lg font-extrabold tracking-tight text-white">{symbol}</p>
             <p className="truncate text-xs text-slate-500">{symbolName(symbol)}</p>
           </div>
@@ -351,6 +436,79 @@ function TradeTicket({ symbol }: { symbol: string }) {
           )
         })}
       </div>
+
+      {/* ── Order type ── */}
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Order type">
+        {(['market', 'limit'] as OrderType[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            data-testid={`ordertype-${t}`}
+            data-active={orderType === t}
+            onClick={() => {
+              setOrderType(t)
+              setError(null)
+              // Prefill the limit with the price on screen: the learner is
+              // almost always adjusting *from* the current price, and an empty
+              // field would make them read it off the header and retype it.
+              if (t === 'limit' && limitInput === '' && price > 0) {
+                setLimitInput(price.toFixed(2))
+              }
+            }}
+            className={`min-h-[40px] rounded-2xl border text-[13px] font-bold uppercase tracking-wide transition-colors ${
+              orderType === t
+                ? 'border-slate-500 bg-slate-700 text-white'
+                : 'border-slate-800 bg-slate-900 text-slate-400 active:bg-slate-800'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Limit price ── */}
+      {isLimit && (
+        <section className="space-y-2 rounded-2xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3.5">
+          <label
+            htmlFor="tq-limit"
+            className="text-xs font-semibold uppercase tracking-wide text-sky-300"
+          >
+            Limit price
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-slate-500">$</span>
+            <input
+              id="tq-limit"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={limitInput}
+              onChange={(e) => {
+                setLimitInput(e.target.value.replace(/[^0-9.]/g, ''))
+                setError(null)
+              }}
+              placeholder="0.00"
+              data-testid="limit-input"
+              className="min-h-[44px] w-full bg-transparent text-2xl font-extrabold tabular-nums text-white placeholder:text-slate-700 focus:outline-none"
+            />
+          </div>
+          <p className="text-[11px] leading-snug text-slate-400" data-testid="limit-explain">
+            {side === 'buy'
+              ? `Fills on the first session ${symbol} trades at or below ${limitOk ? money(typedLimit) : 'your limit'} — at the opening price if it gaps below. Rests ${LIMIT_ORDER_TTL_DAYS} days, then cancels.`
+              : `Fills on the first session ${symbol} trades at or above ${limitOk ? money(typedLimit) : 'your limit'} — at the opening price if it gaps above. Rests ${LIMIT_ORDER_TTL_DAYS} days, then cancels.`}
+          </p>
+          {crossesNow && (
+            <p
+              className="rounded-lg bg-amber-500/10 px-2.5 py-2 text-[11px] leading-snug text-amber-300"
+              data-testid="limit-crosses-warning"
+            >
+              That limit is already through the market at {money(price)}, so it fills at the next
+              open. If you meant to wait for a better price, a buy limit goes below and a sell limit
+              above.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* ── Amount ── */}
       <section className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3.5">
@@ -431,13 +589,15 @@ function TradeTicket({ symbol }: { symbol: string }) {
       {/* ── Preview ── */}
       <section className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3.5">
         <div className="flex items-baseline justify-between text-sm">
-          <span className="text-slate-400">{side === 'buy' ? 'Cost' : 'Proceeds'}</span>
+          <span className="text-slate-400">
+            {isLimit ? (side === 'buy' ? 'Cost if filled' : 'Proceeds if filled') : side === 'buy' ? 'Cost' : 'Proceeds'}
+          </span>
           <span className="font-bold tabular-nums text-slate-100" data-testid="preview-cost">
             {money(notional)}
           </span>
         </div>
         <div className="flex items-baseline justify-between text-sm">
-          <span className="text-slate-400">Cash after</span>
+          <span className="text-slate-400">{isLimit ? 'Cash after a fill' : 'Cash after'}</span>
           <span
             className={`font-bold tabular-nums ${cashAfter < 0 ? 'text-rose-400' : 'text-slate-100'}`}
             data-testid="preview-cash-after"
@@ -465,7 +625,12 @@ function TradeTicket({ symbol }: { symbol: string }) {
         )}
       </section>
 
-      {/* ── Journal ── */}
+      {/* ── Journal ──
+          Market orders only: the note is a thesis attached to a *fill*, and a
+          limit order may never become one. It is asked for again on the ticket
+          the day the order fills, where it can be written with hindsight of the
+          price that was actually paid. */}
+      {!isLimit && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3.5">
         <label htmlFor="tq-note" className="text-xs font-semibold text-slate-300">
           Why this trade?{' '}
@@ -482,6 +647,7 @@ function TradeTicket({ symbol }: { symbol: string }) {
           className="mt-2 min-h-[40px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-[13px] text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
         />
       </section>
+      )}
 
       {error && (
         <p
@@ -506,7 +672,11 @@ function TradeTicket({ symbol }: { symbol: string }) {
               : 'bg-rose-500 text-slate-950 active:bg-rose-400'
         }`}
       >
-        {side === 'buy' ? 'Buy' : 'Sell'} {valid ? money(notional) : ''} {symbol}
+        {isLimit
+          ? `${side === 'buy' ? 'Place buy limit' : 'Place sell limit'}${
+              valid ? ` at ${money(typedLimit)}` : ''
+            }`
+          : `${side === 'buy' ? 'Buy' : 'Sell'} ${valid ? money(notional) : ''} ${symbol}`}
       </button>
     </div>
   )

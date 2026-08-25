@@ -7,14 +7,22 @@ import { Link } from 'react-router-dom'
 import { CONCENTRATION_WARN_PCT } from '@core/portfolio/engine'
 import { performanceSeries } from '@core/portfolio/benchmark'
 import {
+  LIMIT_ORDER_TTL_DAYS,
+  orderAgeDays,
+  visibleOrders,
+} from '@core/portfolio/limitOrders'
+import {
   dayChange,
   positionRows,
   transactionsNewestFirst,
   vsBenchmarkPct,
 } from '@state/selectors'
+import { useAppStore, appClock } from '@state/useAppStore'
 import { usePortfolioValuation } from '@ui/data/usePortfolio'
+import { useWatchlistRows } from '@ui/data/useOrders'
 import { symbolName } from '@ui/data/universe'
 import { PerformanceChart } from '@ui/charts/PerformanceChart'
+import { StarButton } from '@ui/components/StarButton'
 import { money, pct, pnlTone, qty as fmtQty, shortDate, signedMoney, signedPct, stampDate } from '@ui/format'
 
 /**
@@ -43,9 +51,71 @@ function Stat({
   )
 }
 
+/** One resting (or lapsed) limit order. */
+function OrderRow({
+  order,
+  today,
+  onCancel,
+}: {
+  order: ReturnType<typeof visibleOrders>[number]
+  today: string
+  onCancel: (id: string) => void
+}) {
+  const age = orderAgeDays(order, today)
+  const expired = order.status === 'expired'
+  return (
+    <li
+      data-testid="order-row"
+      data-symbol={order.symbol}
+      data-status={order.status}
+      className="flex items-center gap-3 px-4 py-3"
+    >
+      <span
+        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          expired
+            ? 'bg-slate-700/60 text-slate-400'
+            : order.side === 'buy'
+              ? 'bg-emerald-500/15 text-emerald-300'
+              : 'bg-rose-500/15 text-rose-300'
+        }`}
+      >
+        {order.side}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-slate-100">
+          {fmtQty(order.qty)} {order.symbol}
+          <span className="ml-1.5 font-normal tabular-nums text-slate-400">
+            @ {money(order.limitPrice)}
+          </span>
+        </p>
+        <p className="text-[11px] text-slate-500" data-testid="order-age">
+          {expired
+            ? `Expired unfilled after ${LIMIT_ORDER_TTL_DAYS} days`
+            : age === 0
+              ? 'Placed today'
+              : `Resting ${age} day${age === 1 ? '' : 's'} · ${LIMIT_ORDER_TTL_DAYS - age} left`}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="order-cancel"
+        onClick={() => onCancel(order.id)}
+        className="min-h-[36px] shrink-0 rounded-lg border border-slate-700 px-2.5 text-[11px] font-semibold text-slate-300 active:bg-slate-800"
+      >
+        {expired ? 'Clear' : 'Cancel'}
+      </button>
+    </li>
+  )
+}
+
 export function PortfolioScreen() {
   const [showHistory, setShowHistory] = useState(false)
   const { portfolio, equity, prices, quotes, spyPrice, loading, stale } = usePortfolioValuation()
+  const openOrders = useAppStore((s) => s.openOrders)
+  const cancelLimitOrder = useAppStore((s) => s.cancelLimitOrder)
+  const { rows: watchRows } = useWatchlistRows()
+  const orders = visibleOrders(openOrders)
+  const today = appClock.today()
 
   const rows = positionRows(portfolio, prices, equity.equity)
   const curve = performanceSeries(portfolio)
@@ -243,6 +313,88 @@ export function PortfolioScreen() {
           </ul>
         )}
       </section>
+
+      {/* ── Open orders ──
+          Only rendered when there are any: an empty "Open Orders" header on a
+          screen that already has an empty Positions state is two dead sections
+          telling the learner the same thing. */}
+      {orders.length > 0 && (
+        <section data-testid="orders-section">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Open orders
+            </h2>
+            <span className="text-xs tabular-nums text-slate-500">{orders.length}</span>
+          </div>
+          <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
+            {orders.map((o) => (
+              <OrderRow key={o.id} order={o} today={today} onCancel={cancelLimitOrder} />
+            ))}
+          </ul>
+          <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-slate-600">
+            Checked against the daily bars each time you open the app — a limit that was crossed
+            while you were away fills at that day’s price, not today’s.
+          </p>
+        </section>
+      )}
+
+      {/* ── Watchlist ── */}
+      {watchRows.length > 0 && (
+        <section data-testid="watchlist-section">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Watchlist
+            </h2>
+            <span className="text-xs tabular-nums text-slate-500">{watchRows.length}</span>
+          </div>
+          <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
+            {watchRows.map((w) => (
+              <li
+                key={w.symbol}
+                data-testid="watch-row"
+                data-symbol={w.symbol}
+                className="flex items-center"
+              >
+                <Link
+                  to={`/trade?symbol=${w.symbol}`}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 active:bg-slate-800/60"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-100">
+                      {w.symbol}
+                      <span className="ml-2 text-[11px] font-normal text-slate-500">
+                        {symbolName(w.symbol)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p
+                      className="text-sm font-bold tabular-nums text-slate-100"
+                      data-testid="watch-price"
+                    >
+                      {w.price === null ? '···' : money(w.price)}
+                    </p>
+                    <p
+                      className={`text-[11px] tabular-nums ${
+                        w.change === null ? 'text-slate-500' : pnlTone(w.change)
+                      }`}
+                      data-testid="watch-change"
+                    >
+                      {w.change === null || w.changePct === null
+                        ? '—'
+                        : `${signedMoney(w.change)} (${signedPct(w.changePct)})`}
+                    </p>
+                  </div>
+                </Link>
+                <StarButton symbol={w.symbol} className="mr-1 shrink-0" />
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-slate-600">
+            Move shown against the previous bundled close.
+          </p>
+        </section>
+      )}
 
       {/* ── History ── */}
       {traded && (

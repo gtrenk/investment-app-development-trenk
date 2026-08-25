@@ -5,7 +5,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { Confidence, DrillResult, OhlcvSeries, PatternDrillDef, WhatNextDrillDef } from '@core/types'
+import type {
+  Confidence,
+  DrillResult,
+  FinDrillDef,
+  OhlcvSeries,
+  PatternDrillDef,
+  WhatNextDrillDef,
+} from '@core/types'
 import {
   CALIBRATION_ADJUST,
   CONFIDENCE_LEVELS,
@@ -19,11 +26,14 @@ import type { WhatNextOutcome } from '@core/drills/engine'
 import { lastCloseReturn, sliceSeries } from '@core/market/bundled'
 import { XP_DRILL, XP_DRILL_CORRECT_BONUS } from '@core/gamification/xp'
 import { PATTERN_DRILLS, PATTERN_LABELS, WHATNEXT_DRILLS } from '@content/drills/patterns'
+import { FIN_DRILLS, FIN_DRILL_KIND_LABELS } from '@content/drills/financials'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { dayLogFor } from '@state/selectors'
 import { useSeries } from '@ui/data/loadSeries'
+import { useStatements } from '@ui/data/loadFinancials'
 import { ATTRIBUTION, CandleChart } from '@ui/charts/CandleChart'
 import { Markdown } from '@ui/components/Markdown'
+import { StatementTable } from '@ui/components/StatementTable'
 import { KIND_COPY, OUTCOMES, OUTCOME_COPY, pct } from '@ui/drills/labels'
 
 /** Bars of lead-in shown before a what-next cutoff. */
@@ -438,6 +448,162 @@ function PatternDrill({ def }: { def: PatternDrillDef }) {
   )
 }
 
+// ── Read-the-financials drill ────────────────────────────────────────────────
+
+/**
+ * The authored `explain` strings use `•` for their distractor post-mortems.
+ * `Markdown` understands `-` and `*` lists, so translate at the boundary rather
+ * than reformatting 36 hand-written explanations (or teaching the renderer a
+ * fourth bullet character it will never see anywhere else).
+ */
+function bulletsToMarkdown(md: string): string {
+  return md.replace(/^•\s+/gm, '- ')
+}
+
+function FinancialsDrill({ def }: { def: FinDrillDef }) {
+  const { arm, flush } = useDeferredRecord()
+  const { statements, loading, error } = useStatements(def.statementIds)
+  const [picked, setPicked] = useState<number | null>(null)
+  const [showDone, setShowDone] = useState(false)
+  const recorded = useRef(false)
+
+  if (error) return <Failed message={error} />
+
+  const answered = picked !== null
+  const correct = picked === def.answerIdx
+  const score = scoreDrill(correct)
+
+  function pick(idx: number) {
+    if (picked !== null || recorded.current) return
+    setPicked(idx)
+    recorded.current = true
+    const isRight = idx === def.answerIdx
+    arm({
+      drillId: def.id,
+      kind: 'financials',
+      date: appClock.today(),
+      correct: isRight,
+      score: scoreDrill(isRight),
+    })
+  }
+
+  if (showDone) {
+    return (
+      <Shell title={KIND_COPY.financials.title} subtitle="Done" steps={2} step={1}>
+        <DonePanel
+          correct={correct}
+          score={score}
+          lines={[{ label: correct ? 'Correct answer' : 'Missed', value: score }]}
+          xp={XP_DRILL + (correct ? XP_DRILL_CORRECT_BONUS : 0)}
+        />
+      </Shell>
+    )
+  }
+
+  return (
+    <Shell
+      title={KIND_COPY.financials.title}
+      subtitle={FIN_DRILL_KIND_LABELS[def.kind]}
+      steps={2}
+      step={0}
+    >
+      <div className="space-y-4">
+        {statements.length > 0 ? (
+          <StatementTable companies={statements} />
+        ) : (
+          <Loading label={loading ? 'Loading statements…' : 'No statements'} />
+        )}
+
+        <h2
+          className="text-[15px] font-semibold leading-snug text-white"
+          data-testid="drill-question"
+        >
+          {def.prompt}
+        </h2>
+
+        <div className="space-y-2.5">
+          {def.choices.map((choice, i) => {
+            const isAnswer = i === def.answerIdx
+            const isPicked = i === picked
+            const state = !answered
+              ? 'idle'
+              : isAnswer
+                ? isPicked
+                  ? 'correct'
+                  : 'revealed'
+                : isPicked
+                  ? 'wrong'
+                  : 'idle'
+            const cls =
+              state === 'correct'
+                ? 'border-emerald-400 bg-emerald-500/15 text-emerald-100'
+                : state === 'revealed'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
+                  : state === 'wrong'
+                    ? 'border-rose-500 bg-rose-500/15 text-rose-100'
+                    : 'border-slate-700 bg-slate-900 text-slate-100 active:bg-slate-800'
+            return (
+              <button
+                key={choice}
+                type="button"
+                data-testid="drill-choice"
+                data-state={state}
+                disabled={answered}
+                onClick={() => pick(i)}
+                className={`flex min-h-[52px] w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-[14px] font-semibold leading-snug transition-colors ${cls}`}
+              >
+                <span
+                  aria-hidden
+                  className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-[11px] opacity-70"
+                >
+                  {'ABCD'[i]}
+                </span>
+                <span className="min-w-0 flex-1 tabular-nums">{choice}</span>
+                {state === 'correct' && <span aria-hidden>✓</span>}
+                {state === 'revealed' && <span aria-hidden>←</span>}
+                {state === 'wrong' && <span aria-hidden>✕</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {answered && (
+          <div
+            data-testid="drill-explain"
+            data-correct={correct}
+            className={`anim-fade-up rounded-2xl border px-4 py-3.5 ${
+              correct ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-rose-500/40 bg-rose-500/10'
+            }`}
+          >
+            <p className={`mb-2 text-sm font-bold ${correct ? 'text-emerald-300' : 'text-rose-300'}`}>
+              {correct
+                ? 'Correct'
+                : `Not quite — the answer is ${'ABCD'[def.answerIdx]}: ${def.choices[def.answerIdx]}`}
+            </p>
+            <div className="text-[13px] leading-relaxed text-slate-300">
+              <Markdown md={bulletsToMarkdown(def.explain)} />
+            </div>
+          </div>
+        )}
+
+        {answered && (
+          <button
+            type="button"
+            data-testid="drill-continue"
+            onClick={() => {
+              flush()
+              setShowDone(true)
+            }}
+            className="min-h-[52px] w-full rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
+          >
+            Continue
+          </button>
+        )}
+      </div>
+    </Shell>
+  )
+}
+
 // ── What-next drill ──────────────────────────────────────────────────────────
 
 type WhatNextStep = 'direction' | 'confidence' | 'reveal' | 'done'
@@ -688,7 +854,7 @@ export function DrillPlayer() {
   // `pickDailyDrill` and `answeredToday` read, and the drill in play must not
   // change underneath the learner.
   const [daily] = useState(() =>
-    pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today),
+    pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today, undefined, FIN_DRILLS),
   )
   const [wasAnswered] = useState(() => answeredToday(drillHistory, today))
 
@@ -714,8 +880,5 @@ export function DrillPlayer() {
 
   if (daily.kind === 'pattern') return <PatternDrill def={daily.def} />
   if (daily.kind === 'whatnext') return <WhatNextDrill def={daily.def} />
-  // `pickDailyDrill` is called without `finDefs` here, so the three-kind
-  // rotation is off and this branch is unreachable — until the read-the-
-  // financials player lands and FIN_DRILLS is passed in above.
-  return <Failed message="Read-the-financials drills are not wired up yet." />
+  return <FinancialsDrill def={daily.def} />
 }

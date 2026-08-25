@@ -13,6 +13,7 @@ import {
 } from '@core/drills/engine'
 import { XP_DRILL, XP_DRILL_CORRECT_BONUS } from '@core/gamification/xp'
 import { PATTERN_DRILLS, WHATNEXT_DRILLS } from '@content/drills/patterns'
+import { FIN_DRILLS, FIN_DRILL_KIND_LABELS } from '@content/drills/financials'
 import { useAppStore, appClock } from '@state/useAppStore'
 import {
   confidenceSampleSize,
@@ -39,7 +40,7 @@ export function DrillsScreen() {
   const today = appClock.today()
 
   const daily = useMemo(
-    () => pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today),
+    () => pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today, undefined, FIN_DRILLS),
     [drillHistory, today],
   )
 
@@ -91,9 +92,9 @@ export function DrillsScreen() {
             </div>
           </div>
           <p className="mt-3 text-xs text-slate-400">
-            A fresh drill unlocks tomorrow — the kind alternates, so tomorrow is{' '}
+            A fresh drill unlocks tomorrow — the kind rotates, so tomorrow is{' '}
             <span className="font-semibold text-slate-300">
-              {KIND_COPY[drillKindForDay(addDays(today, 1))].title}
+              {KIND_COPY[drillKindForDay(addDays(today, 1), true)].title}
             </span>
             .
           </p>
@@ -114,10 +115,14 @@ export function DrillsScreen() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-white">{copy.title}</h2>
-                {/* The ticker stays hidden either way — a what-next drill must be
-                    anonymous, and a pattern drill reads better unprimed too. */}
+                {/* The ticker stays hidden on chart drills — a what-next drill
+                    must be anonymous, and a pattern drill reads better unprimed.
+                    A financials drill has no ticker to hide, so it announces the
+                    kind of question instead of a fake mystery. */}
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Mystery Chart
+                  {daily.kind === 'financials'
+                    ? FIN_DRILL_KIND_LABELS[daily.def.kind]
+                    : 'Mystery Chart'}
                 </p>
               </div>
             </div>
