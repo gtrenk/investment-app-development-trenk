@@ -1,0 +1,167 @@
+{
+  "generated": "synthetic",
+  "symbols": [
+    {
+      "symbol": "AAPL",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "MSFT",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "NVDA",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "AMZN",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "GOOG",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "META",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "TSLA",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "JPM",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "BAC",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "XOM",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "CVX",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "JNJ",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "PFE",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "UNH",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "WMT",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "COST",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "KO",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "PG",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "DIS",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "NFLX",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "BA",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "CAT",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "HD",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "V",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "MA",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "SPY",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    },
+    {
+      "symbol": "QQQ",
+      "bars": 2520,
+      "firstDate": "2016-12-26",
+      "lastDate": "2026-08-21"
+    }
+  ]
+}

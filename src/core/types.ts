@@ -181,3 +181,75 @@ export interface PortfolioState {
   benchmarkUnits: number | null
   snapshots: EquitySnapshot[]
 }
+
+// ── Drills ──
+
+/** Every chart shape the pattern drill can ask about. */
+export type PatternId =
+  | 'head-and-shoulders'
+  | 'inverse-head-and-shoulders'
+  | 'double-top'
+  | 'double-bottom'
+  | 'ascending-triangle'
+  | 'descending-triangle'
+  | 'symmetrical-triangle'
+  | 'bull-flag'
+  | 'bear-flag'
+  | 'cup-and-handle'
+  | 'rising-wedge'
+  | 'falling-wedge'
+  | 'breakout'
+  | 'support-bounce'
+  | 'uptrend'
+  | 'downtrend'
+  | 'consolidation'
+
+/** Self-reported probability that the chosen answer is right. */
+export type Confidence = 50 | 70 | 90
+
+/**
+ * One pattern-recognition question: a window of a bundled series plus the
+ * correct label and three wrong ones. `startIdx`/`endIdx` are inclusive indices
+ * into that symbol's `OhlcvSeries` arrays.
+ */
+export interface PatternDrillDef {
+  id: string
+  symbol: string
+  startIdx: number
+  endIdx: number
+  answer: PatternId
+  distractors: [PatternId, PatternId, PatternId]
+  /** Teaching note revealed after answering: what identifies it, what it signals. */
+  explain: string
+}
+
+/**
+ * One "what happens next" question: bars up to `cutoffIdx` are shown, the
+ * learner predicts the direction over the following `horizon` bars, then the
+ * hidden bars are revealed.
+ */
+export interface WhatNextDrillDef {
+  id: string
+  symbol: string
+  /** Inclusive index of the last visible bar. */
+  cutoffIdx: number
+  /** Bars ahead the prediction covers (10 in the shipped set). */
+  horizon: number
+}
+
+export type DrillKind = 'pattern' | 'whatnext'
+
+export interface DrillResult {
+  drillId: string
+  kind: DrillKind
+  /** Local date 'YYYY-MM-DD' the drill was answered */
+  date: string
+  correct: boolean
+  /** Only what-next drills collect a confidence level */
+  confidence?: Confidence
+  score: number
+}
+
+export interface DrillHistory {
+  results: DrillResult[]
+}
