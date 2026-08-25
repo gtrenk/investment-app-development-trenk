@@ -1,0 +1,67 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/investing-gamification-app-0w6x5q
+  workflow_dispatch:
+
+# One deploy at a time; a newer push supersedes an in-flight run rather than
+# queueing behind it.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Project pages live under /<repo>/, so the bundle, the manifest and every
+      # runtime fetch have to be built against that base.
+      #
+      # VITE_QUOTE_PROXY comes from the repo variable QUOTE_PROXY (Settings →
+      # Secrets and variables → Actions → Variables). Unset it is an empty
+      # string and the app falls back to bundled closes with a "Stale" badge —
+      # set it once the Cloudflare Worker is deployed and the next build picks
+      # up live quotes with no code change.
+      - name: Build
+        env:
+          VITE_APP_BASE: /investment-app-development-trenk/
+          VITE_QUOTE_PROXY: ${{ vars.QUOTE_PROXY }}
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # enablement: true turns Pages on for the repo (Source: GitHub Actions)
+      # on the first run, so no manual toggle is strictly required.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

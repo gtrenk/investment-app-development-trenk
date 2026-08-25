@@ -4,7 +4,27 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
+/**
+ * Deploy base path, chosen at build time.
+ *
+ * Unset (the default) means `/` — local dev, `vite preview`, the e2e suite and
+ * any root-domain host all behave exactly as they always have. GitHub Pages
+ * serves this repo as a *project* site under `/<repo>/`, so its workflow builds
+ * with `VITE_APP_BASE=/investment-app-development-trenk/`.
+ *
+ * Normalised to always carry a leading and a trailing slash, so both Vite and
+ * every `${base}foo` concatenation below (and `import.meta.env.BASE_URL` at
+ * runtime) agree on the shape.
+ */
+function normalizeBase(raw: string): string {
+  const trimmed = raw.trim().replace(/^\/+/, '').replace(/\/+$/, '')
+  return trimmed === '' ? '/' : `/${trimmed}/`
+}
+
+const base = normalizeBase(process.env.VITE_APP_BASE ?? '/')
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -20,7 +40,12 @@ export default defineConfig({
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // Both must sit under the deploy base or the installed app launches at
+        // the domain root and lands on someone else's 404.
+        start_url: base,
+        scope: base,
+        // Icon `src` stays relative: the browser resolves it against the
+        // manifest URL, which is itself served from `base`.
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -35,7 +60,7 @@ export default defineConfig({
       workbox: {
         // Precache the app shell and all bundled market data for full offline use
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}', 'data/**/*.json'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
       },
     }),
   ],

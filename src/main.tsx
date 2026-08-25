@@ -7,9 +7,13 @@ import './index.css'
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('#root missing from index.html')
 
+// Vite bakes in the deploy base ('/' by default, '/<repo>/' on GitHub Pages).
+// React Router wants it without the trailing slash, and '/' for a root deploy.
+const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
+
 createRoot(rootEl).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <App />
     </BrowserRouter>
   </StrictMode>,
