@@ -33,6 +33,28 @@ Putting it on a real URL — static hosting, the quote proxy, real market data, 
 | `node scripts/generate-data.mjs` | Regenerate the bundled synthetic chart data (deterministic) |
 | `node scripts/fetch-data.mjs` | **Replace synthetic data with real Stooq history** (run on your own network) |
 
+## Sync across devices
+
+Each install holds up to five profiles, and a profile can follow you to another
+phone or tablet. There are no accounts: in **Profile → ✏️ Edit → Cloud sync**,
+turning sync on mints a 20-character **sync code**. Enter that code on the other
+device under **Link from another device** and both are looking at the same
+profile — same XP, streak, review schedule, drill history and paper portfolio.
+The code is the entire credential, so treat it like a password; anyone who has
+it can read and overwrite that profile. **Unlink this device** stops syncing
+here and leaves the cloud copy alone; **Delete cloud copy** erases it for
+everyone.
+
+Conflicts are resolved **per key, last write wins**. Use the same profile on two
+devices at once without letting either sync in between, and whichever change is
+uploaded later keeps its value — the other device's edit to *that* key is gone,
+with no merge and no prompt. Separate keys (a lesson on one device, a trade on
+the other) do not collide. For a personal learning app that trade is worth the
+simplicity; one device at a time and it never fires.
+
+Sync is inert until the Cloudflare Worker is deployed and `QUOTE_PROXY` is set —
+one Worker serves both live quotes and sync. See **[DEPLOY.md](DEPLOY.md) §3**.
+
 ## Bundled market data
 
 Chart drills use bundled daily OHLCV for 27 symbols under `public/data/`. The committed data is **synthetic but realistic** (seeded regime-switching model with fat tails) because the build environment cannot reach market-data hosts. To swap in real 10-year Stooq history, run `node scripts/fetch-data.mjs` locally and commit the refreshed `public/data/`.
@@ -46,6 +68,7 @@ src/core/       Pure TypeScript engines — no React, no DOM (portable to React 
   drills/       Drill selection, outcome grading, calibration stats
   market/       Series slicing/validation helpers
   storage/      StorageAdapter interface + versioned keys
+  sync/         Cloud-sync protocol (fetch injected) + the sync-code alphabet
 src/content/    Curriculum authored as typed data (units, drill windows)
 src/state/      Zustand store: engines ↔ IndexedDB ↔ UI glue
 src/ui/         React screens/components (the only layer that knows about the DOM)

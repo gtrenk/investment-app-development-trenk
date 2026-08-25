@@ -276,7 +276,12 @@ export interface AppState {
   watchlist: string[]
   pendingCelebrations: Celebration[]
 
-  hydrate: () => Promise<void>
+  /**
+   * Read the active profile's state in. Idempotent — a second call is a no-op
+   * unless `force` is set, which is how a cloud pull that changed keys under
+   * the app gets the screens to show the new values without a page reload.
+   */
+  hydrate: (force?: boolean) => Promise<void>
   completeLesson: (lessonId: LessonId) => void
   answerQuiz: (itemId: string, correctFirstTry: boolean) => void
   gradeCard: (cardId: CardId, grade: Grade) => void
@@ -313,10 +318,32 @@ let storage: StorageAdapter = createMemoryStorage()
  * store is exactly the failure this whole scheme exists to notice, and a bare
  * `void promise` would turn it into a silent unhandled rejection.
  */
+/**
+ * Cloud sync's tap into persistence.
+ *
+ * Every mutation in this file already funnels through `write()`, so that is the
+ * one place a key can be marked dirty without hand-editing twenty actions and
+ * forgetting the twenty-first. Registered by src/state/sync.ts at boot; a build
+ * with sync off (or a worker not deployed) simply never registers one.
+ *
+ * A *hook*, not an import, so this module keeps knowing nothing about sync —
+ * the dependency runs one way and there is no cycle to reason about.
+ */
+export type PersistHook = (key: string) => void
+
+let persistHook: PersistHook | null = null
+
+export function onPersist(hook: PersistHook | null): void {
+  persistHook = hook
+}
+
 function write<T>(key: string, value: T): void {
   void storage.set(key, value).catch((err: unknown) => {
     console.error(`[tickerquest] failed to save ${key}`, err)
   })
+  // Outside the promise on purpose: the key is dirty the moment the app decided
+  // to change it, whether or not IndexedDB has caught up.
+  persistHook?.(key)
 }
 
 function persist(s: Pick<AppState, 'progress' | 'srs' | 'game' | 'drillHistory'>): void {
@@ -355,8 +382,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   watchlist: [],
   pendingCelebrations: [],
 
-  async hydrate() {
-    if (get().ready) return
+  async hydrate(force = false) {
+    if (get().ready && !force) return
     // Point every read and write below at the active profile's namespace. The
     // keys the store asks for never change — only where they land.
     storage = await activeProfileStorage()
@@ -721,14 +748,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       watchlist: [],
       pendingCelebrations: [],
     })
-    await Promise.all([
-      storage.del(STORAGE_KEYS.progress),
-      storage.del(STORAGE_KEYS.srs),
-      storage.del(STORAGE_KEYS.game),
-      storage.del(STORAGE_KEYS.drills),
-      storage.del(STORAGE_KEYS.portfolio),
-      storage.del(STORAGE_KEYS.orders),
-      storage.del(STORAGE_KEYS.watchlist),
-    ])
+    const wiped = [
+      STORAGE_KEYS.progress,
+      STORAGE_KEYS.srs,
+      STORAGE_KEYS.game,
+      STORAGE_KEYS.drills,
+      STORAGE_KEYS.portfolio,
+      STORAGE_KEYS.orders,
+      STORAGE_KEYS.watchlist,
+    ]
+    await Promise.all(wiped.map((key) => storage.del(key)))
+    // A reset is a change like any other: mark the keys dirty so the cloud copy
+    // is emptied too, rather than restoring everything on the next pull.
+    for (const key of wiped) persistHook?.(key)
   },
 }))

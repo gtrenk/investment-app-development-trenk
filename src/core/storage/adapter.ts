@@ -24,6 +24,13 @@ export const STORAGE_KEYS = {
   orders: 'tq.v1.orders',
   /** Watchlist — a plain array of symbols, in the order they were starred. */
   watchlist: 'tq.v1.watchlist',
+  /**
+   * Cloud-sync bookkeeping for this profile *on this device*: what each key's
+   * last local change was and what the server has accepted. Profile-scoped so
+   * deleting a profile takes it along, but never itself synced — see
+   * SYNC_LEDGER_KEY in src/core/sync/engine.ts.
+   */
+  syncLedger: 'tq.v1.syncLedger',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

@@ -6,6 +6,7 @@ import { badgeById } from '@core/gamification/badges'
 import { answeredToday, drillKindForDay } from '@core/drills/engine'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { activeProfile, useProfilesStore } from '@state/profiles'
+import { useSyncStore } from '@state/sync'
 import {
   TOTAL_LESSONS,
   dayLogFor,
@@ -21,6 +22,7 @@ import { money, pnlTone, signedPct } from '@ui/format'
 import { XPBar } from '@ui/components/XPBar'
 import { StreakFlame } from '@ui/components/StreakFlame'
 import { ProgressBar } from '@ui/components/ProgressBar'
+import { SyncDot, syncStatusLabel } from '@ui/components/SyncDot'
 
 function greeting(nowIso: string): string {
   const h = new Date(nowIso).getHours()
@@ -145,6 +147,7 @@ export function HomeScreen() {
   const recentBadges = [...game.badges].slice(-4).reverse()
 
   const me = useProfilesStore((s) => activeProfile(s.meta))
+  const syncStatus = useSyncStore((s) => s.status)
 
   return (
     <div className="safe-top space-y-5 px-4 pb-4">
@@ -161,11 +164,12 @@ export function HomeScreen() {
             to="/profiles"
             data-testid="profile-chip"
             data-profile={me.id}
-            aria-label={`Switch profile — currently ${me.name}`}
-            title={`Playing as ${me.name} — switch profile`}
-            className="flex h-11 w-11 min-h-[44px] shrink-0 items-center justify-center rounded-full border border-slate-800 bg-slate-900/70 text-xl active:bg-slate-800"
+            aria-label={`Switch profile — currently ${me.name}. ${syncStatusLabel(syncStatus)}`}
+            title={`Playing as ${me.name} — switch profile · ${syncStatusLabel(syncStatus)}`}
+            className="relative flex h-11 w-11 min-h-[44px] shrink-0 items-center justify-center rounded-full border border-slate-800 bg-slate-900/70 text-xl active:bg-slate-800"
           >
             <span aria-hidden>{me.emoji}</span>
+            <SyncDot />
           </Link>
         )}
       </header>

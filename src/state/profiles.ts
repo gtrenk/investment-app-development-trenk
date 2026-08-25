@@ -23,9 +23,10 @@ import {
   saveProfilesMeta,
   selectProfile,
   setProfileEmoji,
+  setProfileSync,
   wipeProfileData,
 } from '@core/storage/profiles'
-import type { Profile, ProfilesMeta } from '@core/storage/profiles'
+import type { Profile, ProfileSync, ProfilesMeta } from '@core/storage/profiles'
 import type { GameState } from '@core/types'
 import { levelFor } from '@core/gamification/xp'
 import { idbStorage } from '@platform/idbStorage'
@@ -134,6 +135,8 @@ export interface ProfilesState {
   create: (name: string, emoji: string) => Promise<Profile>
   rename: (id: string, name: string) => Promise<void>
   setEmoji: (id: string, emoji: string) => Promise<void>
+  /** Link this profile to a cloud sync code, or `null` to unlink this device. */
+  setSync: (id: string, sync: ProfileSync | null) => Promise<void>
   remove: (id: string) => Promise<void>
   /** Sign in. Callers reload the page afterwards — see `enterProfile`. */
   select: (id: string) => Promise<void>
@@ -177,6 +180,10 @@ export const useProfilesStore = create<ProfilesState>((set, get) => ({
 
   async setEmoji(id, emoji) {
     set({ meta: await commit(setProfileEmoji(get().meta, id, emoji)) })
+  },
+
+  async setSync(id, sync) {
+    set({ meta: await commit(setProfileSync(get().meta, id, sync)) })
   },
 
   async remove(id) {

@@ -24,6 +24,23 @@ export const META_KEY = 'tq.profiles'
 
 export const NAME_MAX_LEN = 16
 
+/**
+ * Cloud-sync enrolment for one profile.
+ *
+ * Device-local, like the rest of the registry: the *token* is what travels
+ * between devices, and it travels by the owner reading it off one screen and
+ * typing it into another. Nothing here is ever uploaded.
+ *
+ * Holding the token is the entire authorisation — see proxy/worker.js §2 — so
+ * it is a password in every sense that matters, and the UI says so.
+ */
+export interface ProfileSync {
+  /** 20-character Crockford base32 sync code. */
+  token: string
+  /** ISO timestamp sync was switched on for this profile on this device. */
+  enabledAt: string
+}
+
 export interface Profile {
   id: ProfileId
   /** 1–16 characters, already trimmed. */
@@ -32,6 +49,8 @@ export interface Profile {
   emoji: string
   createdAt: string
   lastActiveAt: string
+  /** Absent while sync is off, which is the default and the common case. */
+  sync?: ProfileSync
 }
 
 export interface ProfilesMeta {
@@ -169,6 +188,32 @@ export function setProfileEmoji(meta: ProfilesMeta, id: string, emoji: string): 
   }
 }
 
+/**
+ * Turn cloud sync on (with a freshly minted token, or one typed in from another
+ * device) or off. Passing `null` unlinks *this device only* — the profile's
+ * local data is untouched and the cloud copy stays where it is, which is what
+ * makes "unlink" and "delete cloud copy" two separate, differently scary
+ * buttons in the UI.
+ */
+export function setProfileSync(
+  meta: ProfilesMeta,
+  id: string,
+  sync: ProfileSync | null,
+): ProfilesMeta {
+  return {
+    ...meta,
+    profiles: meta.profiles.map((p) => {
+      if (p.id !== id) return p
+      if (!sync) {
+        const unlinked: Profile = { ...p }
+        delete unlinked.sync
+        return unlinked
+      }
+      return { ...p, sync }
+    }),
+  }
+}
+
 export function touchProfile(meta: ProfilesMeta, id: string, at: string): ProfilesMeta {
   return {
     ...meta,
@@ -207,6 +252,22 @@ function isProfile(raw: unknown): raw is Profile {
 }
 
 /**
+ * A malformed `sync` block is dropped rather than disqualifying the profile:
+ * losing the cloud link is recoverable (retype the code), losing the profile is
+ * not.
+ */
+function sanitizeProfile(p: Profile): Profile {
+  const s = p.sync as Partial<ProfileSync> | undefined
+  if (s && typeof s.token === 'string' && typeof s.enabledAt === 'string') {
+    return { ...p, sync: { token: s.token, enabledAt: s.enabledAt } }
+  }
+  if (!s) return p
+  const cleaned: Profile = { ...p }
+  delete cleaned.sync
+  return cleaned
+}
+
+/**
  * Defensive read: a record written by a future build (or a half-cleared store)
  * must degrade to "no profiles", never crash the boot path.
  */
@@ -218,6 +279,7 @@ export function sanitizeMeta(raw: unknown): ProfilesMeta | undefined {
   const profiles = r.profiles
     .filter(isProfile)
     .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    .map(sanitizeProfile)
     .sort(bySlot)
   const activeId =
     typeof r.activeId === 'string' && profiles.some((p) => p.id === r.activeId) ? r.activeId : null

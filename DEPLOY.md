@@ -4,9 +4,10 @@ Everything here is optional: the app runs perfectly from `npm run dev` on your
 laptop with your phone on the same Wi-Fi. Deploy when you want it installed on
 the home screen with a stable URL that works away from the house.
 
-The build is a **static site plus one tiny stateless worker**. There is no
-database and no auth — all progress lives in the browser's IndexedDB on the
-device, which is also why the deploy story is this short.
+The build is a **static site plus one tiny Cloudflare Worker**. There is no
+database beyond a key-value bucket and no auth — progress lives in the browser's
+IndexedDB, and cloud sync (§3) is an opt-in copy of it keyed by a code the owner
+carries between devices. That is why the deploy story is this short.
 
 ---
 
@@ -74,22 +75,23 @@ copies `dist/index.html` → `dist/404.html`; Pages serves that for any unknown
 path, the app boots, and the router reads the real URL. It runs after the
 service worker is generated, so `404.html` is not precached twice.
 
-### Live quotes on Pages
+### Live quotes and cloud sync on Pages
 
 Pages serves static files only, so the `/api/stooq` dev proxy does not exist
-there — quotes fall back to the last bundled close and wear the **Stale** badge
-(see §3). The workflow already reads the proxy URL from a repo variable:
+there — quotes fall back to the last bundled close and wear the **Stale** badge,
+and cloud sync has no server to talk to (see §3). The workflow already reads the
+Worker origin from a repo variable:
 
 ```yaml
 env:
   VITE_QUOTE_PROXY: ${{ vars.QUOTE_PROXY }}
 ```
 
-So the day you deploy the Cloudflare Worker, set **Settings → Secrets and
-variables → Actions → Variables → New repository variable**, name `QUOTE_PROXY`,
-value the worker URL — then re-run the workflow. No code change. Unset it is an
-empty string, which is exactly the current fall-back behaviour, so leaving it
-alone is harmless.
+That one variable switches on **both** features. So the day you deploy the
+Cloudflare Worker, set **Settings → Secrets and variables → Actions → Variables
+→ New repository variable**, name `QUOTE_PROXY`, value the worker URL — then
+re-run the workflow. No code change. Unset it is an empty string, which is
+exactly the current fall-back behaviour, so leaving it alone is harmless.
 
 The rest of this document covers building by hand and hosting anywhere else.
 
@@ -156,32 +158,73 @@ use a 404 document as their SPA fallback.
 
 ---
 
-## 3. Live quotes: deploy the proxy worker
+## 3. The Worker: live quotes **and** cloud sync
 
-Without this, the app still works — quotes fall back to the last bundled close
-and are badged **Stale** everywhere they appear. With it, paper trading fills at
-delayed live prices.
+One Worker does both jobs, and one deploy turns both on:
 
-Stooq serves keyless CSV but sends no CORS headers, so the browser cannot call
-it directly. `proxy/worker.js` is a ~40-line GET-only, allow-listed, stateless
-Cloudflare Worker that forwards two path prefixes and adds the CORS header.
+| Path | What it does | Needs |
+|---|---|---|
+| `/q/l/…`, `/q/d/l/…` | Stateless CORS proxy in front of stooq.com | nothing |
+| `/sync…` | Per-profile blob store, so a profile follows you between devices | a KV namespace |
+
+Without it the app still works: quotes fall back to the last bundled close and
+are badged **Stale**, and the Cloud sync panel in Profile → Edit says "not set
+up yet". Both are inert, not broken.
+
+### 3.1 One-time: create the KV namespace
+
+Sync stores one small JSON blob per profile key. Free-tier KV (100k reads and
+1k writes a day) is orders of magnitude more than a household will use.
 
 ```bash
 npm i -g wrangler
 wrangler login
-wrangler deploy proxy/worker.js \
-  --name tickerquest-quotes \
-  --compatibility-date 2024-01-01
+npx wrangler kv namespace create SYNC
 ```
 
-Smoke-test it before wiring it in:
+That prints an id. Paste it into `wrangler.toml`, replacing the placeholder:
+
+```toml
+[[kv_namespaces]]
+binding = "SYNC"
+id = "abc123…"          # ← the id wrangler just printed
+```
+
+### 3.2 Deploy
 
 ```bash
-curl 'https://tickerquest-quotes.<subdomain>.workers.dev/q/l/?s=aapl.us&f=sd2t2ohlcv&h&e=csv'
+npx wrangler deploy      # reads wrangler.toml — name, entry point and binding
 ```
 
-Then point the app at it **at build time** (Vite inlines `VITE_*` variables, so
-this must happen before `npm run build`, not after):
+Smoke-test both halves:
+
+```bash
+# quotes
+curl 'https://tickerquest-quotes.<subdomain>.workers.dev/q/l/?s=aapl.us&f=sd2t2ohlcv&h&e=csv'
+
+# sync — an unclaimed code must 401, which proves KV is bound and reachable
+curl -i -H 'X-Sync-Token: ABCDEFGH0123456789JK' \
+  'https://tickerquest-quotes.<subdomain>.workers.dev/sync/manifest'
+```
+
+A `501 {"error":"Sync is not configured…"}` means the Worker deployed but the
+KV binding is missing — re-check §3.1. A `401 {"error":"Unknown sync code."}` is
+the healthy answer.
+
+### 3.3 Point the app at it
+
+`VITE_QUOTE_PROXY` is the Worker's **origin**, and it is the switch for both
+features: quotes go to `<origin>/q/…`, sync goes to `<origin>/sync`. Vite
+inlines `VITE_*` at build time, so this must happen **before** `npm run build`.
+
+On GitHub Pages (the §0 path), there is no code change to make — set the repo
+variable once:
+
+> **Settings → Secrets and variables → Actions → Variables → New repository
+> variable**, name `QUOTE_PROXY`, value
+> `https://tickerquest-quotes.<subdomain>.workers.dev`
+
+then re-run the workflow. Building by hand instead:
 
 ```bash
 echo 'VITE_QUOTE_PROXY=https://tickerquest-quotes.<subdomain>.workers.dev' >> .env.production
@@ -191,9 +234,40 @@ npm run build
 On a hosted CI build (Netlify/Vercel/Pages dashboards), set `VITE_QUOTE_PROXY`
 as a build environment variable instead of committing `.env.production`.
 
-Verify: open a trade ticket. If the **Stale** badge is gone and the "as of" date
-is today, the proxy is live. If it is still there, the app fell back to bundled
-data — check the worker URL and its CORS response.
+### 3.4 Verify
+
+- **Quotes** — open a trade ticket. If the **Stale** badge is gone and the "as
+  of" date is today, the proxy is live. If it is still there, the app fell back
+  to bundled data; check the Worker URL and its CORS response.
+- **Sync** — Profile → ✏️ Edit → **Cloud sync** should now offer **Enable
+  sync** instead of "Not set up yet". Turn it on, then open the app on a second
+  device and use **Link from another device** with the code it shows.
+
+### 3.5 What sync actually stores
+
+Per profile: the seven per-profile storage keys (`progress`, `srs`, `game`,
+`portfolio`, `drills`, `orders`, `watchlist`) plus a `profileMeta` blob holding
+just the name and avatar. The shared quote cache is **not** synced — it is
+market data, not anyone's progress.
+
+Keys are `<syncId>:<blobKey>`, where `syncId` is the first 8 characters of the
+20-character sync code. The first `PUT` for a syncId claims it by storing the
+full code; every later request must present the identical code (compared in
+constant time). There are no accounts, no email, no passwords to reset — the
+code *is* the credential, which is why the UI tells the owner to treat it like a
+password.
+
+Blobs are capped at 256 KB and the key names are allow-listed, so the worst a
+leaked code buys is one small fixed-shape bucket.
+
+To wipe a profile's cloud copy: Profile → Edit → Cloud sync → **Delete cloud
+copy**. To wipe everything the Worker holds, delete and recreate the KV
+namespace.
+
+⚠ **Conflict policy: per-key last-write-wins.** If two devices change the same
+key before either syncs, the later timestamp wins and the other device's change
+to that key is gone — no merge, no prompt. See the README's "Sync across
+devices" for what that means in practice.
 
 ---
 

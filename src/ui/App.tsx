@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { useProfilesStore } from '@state/profiles'
+import { initProfileSync } from '@state/sync'
 import { todayQueue } from '@state/selectors'
 import { ProfilePicker } from './screens/ProfilePicker'
 import { TabBar } from './components/TabBar'
@@ -83,6 +84,14 @@ export default function App() {
   useEffect(() => {
     if (activeId) void hydrate()
   }, [activeId, hydrate])
+
+  // Stage three, and only once the store has read what is on this device: cloud
+  // sync pulls whatever the other device left behind and takes over persistence
+  // duty. Inert unless the profile opted in and a worker origin is configured,
+  // so for most installs this effect does nothing at all.
+  useEffect(() => {
+    if (activeId && ready) void initProfileSync()
+  }, [activeId, ready])
 
   // Stage one is still running: nothing at all is known yet.
   if (!profilesLoaded) return <Splash />

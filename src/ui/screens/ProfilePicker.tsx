@@ -17,12 +17,15 @@ import {
   enterProfile,
   useProfilesStore,
 } from '@state/profiles'
+import { isSyncConfigured, noteProfileIdentityChanged } from '@state/sync'
+import { CloudSyncSection, LinkDeviceForm } from '@ui/components/CloudSync'
 
 type Mode =
   | { kind: 'list' }
   | { kind: 'create' }
   | { kind: 'edit'; profile: Profile }
   | { kind: 'confirm-delete'; profile: Profile }
+  | { kind: 'link' }
 
 /** Tap grid of avatars — 12 glyphs, no OS emoji keyboard involved. */
 function EmojiGrid({ value, onPick }: { value: string; onPick: (e: string) => void }) {
@@ -186,6 +189,9 @@ export function ProfilePicker() {
     if (invalid) return setError(invalid)
     await rename(profile.id, name)
     await setEmoji(profile.id, emoji)
+    // The name and avatar travel with the profile, so a rename here has to
+    // reach the other device too. No-op when this profile is not synced.
+    await noteProfileIdentityChanged(profile.id)
     backToList()
   }
 
@@ -217,8 +223,12 @@ export function ProfilePicker() {
         </header>
 
         {/* Centred between the header and the bottom of the phone, so the form
-            sits under the thumb instead of stranded at the top of the screen. */}
-        <div className="flex flex-1 flex-col justify-center gap-6 pb-8">
+            sits under the thumb instead of stranded at the top of the screen.
+            Editing adds the cloud-sync panel below, which is taller than the
+            viewport — that one scrolls from the top instead. */}
+        <div
+          className={`flex flex-1 flex-col gap-6 pb-8 ${editing ? 'justify-start pt-2' : 'justify-center'}`}
+        >
           <div className="flex flex-col items-center">
             <span aria-hidden className="text-6xl leading-none" data-testid="profile-preview-emoji">
               {emoji}
@@ -249,19 +259,39 @@ export function ProfilePicker() {
             >
               {editing ? 'Save' : 'Start playing'}
             </button>
-            {editing && (
-              <button
-                type="button"
-                data-testid="profile-delete"
-                onClick={() => setMode({ kind: 'confirm-delete', profile: editing })}
-                className="min-h-[48px] w-full rounded-2xl border border-rose-900/70 px-5 text-sm font-semibold text-rose-400 active:bg-rose-950/40"
-              >
-                Delete this profile
-              </button>
-            )}
           </div>
+
+          {/* Sync sits between "Save" and "Delete", so the one irreversible
+              button on the screen stays at the very bottom where a thumb
+              scrolling the panel cannot reach it by accident. */}
+          {editing && <CloudSyncSection profile={editing} />}
+
+          {editing && (
+            <button
+              type="button"
+              data-testid="profile-delete"
+              onClick={() => setMode({ kind: 'confirm-delete', profile: editing })}
+              className="min-h-[48px] w-full rounded-2xl border border-rose-900/70 px-5 text-sm font-semibold text-rose-400 active:bg-rose-950/40"
+            >
+              Delete this profile
+            </button>
+          )}
         </div>
       </div>
+    )
+  }
+
+  // ── Link from another device ───────────────────────────────────────────────
+  if (mode.kind === 'link') {
+    return (
+      <LinkDeviceForm
+        onCancel={backToList}
+        onLinked={(id) => {
+          // Straight in, like finishing "New profile": the whole point of the
+          // code was to get at this profile, and it is already fully pulled.
+          void enterProfile(id)
+        }}
+      />
     )
   }
 
@@ -354,6 +384,21 @@ export function ProfilePicker() {
           </li>
         )}
       </ul>
+
+      {/* Only offered when there is a server to ask and a slot to fill — a
+          disabled entry that explains a Cloudflare deploy belongs in the edit
+          view, not on the first screen of a cold start. */}
+      {isSyncConfigured() && canCreateProfile(meta) && (
+        <button
+          type="button"
+          data-testid="profile-link-device"
+          onClick={() => setMode({ kind: 'link' })}
+          className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/40 px-4 text-sm font-semibold text-slate-300 active:bg-slate-800/60"
+        >
+          <span aria-hidden>☁️</span>
+          Link from another device
+        </button>
+      )}
 
       {meta.activeId && (
         <button

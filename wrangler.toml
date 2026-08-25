@@ -1,0 +1,21 @@
+# TickerQuest Worker — quotes (CORS proxy) + cloud sync (KV), one deploy.
+#
+#   npx wrangler login
+#   npx wrangler kv namespace create SYNC   # prints an id — paste it below
+#   npx wrangler deploy
+#
+# Until the id is real, `wrangler deploy` fails fast with "KV namespace not
+# found" rather than deploying a worker whose /sync routes would 501.
+
+name = "tickerquest-quotes"
+main = "proxy/worker.js"
+compatibility_date = "2024-01-01"
+
+# Cloud sync: one small JSON blob per profile key, keyed `<syncId>:<blobKey>`.
+# Free-tier KV (100k reads + 1k writes a day) is orders of magnitude more than a
+# handful of family devices will ever use.
+#
+# REPLACE `id` with the value printed by `wrangler kv namespace create SYNC`.
+[[kv_namespaces]]
+binding = "SYNC"
+id = "REPLACE_WITH_THE_ID_FROM_wrangler_kv_namespace_create_SYNC"
