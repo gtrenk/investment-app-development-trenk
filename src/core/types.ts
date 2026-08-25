@@ -237,7 +237,7 @@ export interface WhatNextDrillDef {
   horizon: number
 }
 
-export type DrillKind = 'pattern' | 'whatnext'
+export type DrillKind = 'pattern' | 'whatnext' | 'financials'
 
 export interface DrillResult {
   drillId: string
@@ -252,4 +252,108 @@ export interface DrillResult {
 
 export interface DrillHistory {
   results: DrillResult[]
+}
+
+// ── Read-the-financials drills ──
+
+/**
+ * One fictional company's annual statements, simplified to the lines a learner
+ * actually reasons about. Loaded from `public/data/financials/companies.json`.
+ *
+ * UNITS: every figure is **$ millions** except `shares` (millions of shares)
+ * and `eps` (dollars per share). Because both `netIncome` and `shares` are in
+ * millions, `eps = netIncome / shares` works without a scale factor.
+ *
+ * IDENTITIES every snapshot satisfies exactly (asserted in `tests/finDrills.test.ts`):
+ *   grossProfit      = revenue − cogs
+ *   operatingIncome  = grossProfit − opex
+ *   pretaxIncome     = operatingIncome − interestExpense
+ *   netIncome        = pretaxIncome − taxes
+ *   eps              = netIncome / shares            (exact to 2 decimals)
+ *   currentAssets    ≥ cash + receivables + inventory  (remainder = prepaid/other)
+ *   totalAssets      = currentAssets + ppe + goodwill
+ *   totalLiabilities = currentLiabilities + longTermDebt
+ *   totalAssets      = totalLiabilities + equity
+ *   fcf              = cfo − capex
+ *
+ * `goodwill` absorbs all acquired intangibles and `opex` all of SG&A + R&D —
+ * the statements are teaching instruments, not filings.
+ */
+export interface FinStatementSnapshot {
+  id: string
+  /** Fictional company name — no real issuer is depicted. */
+  company: string
+  sector: string
+  /** Fiscal period label, e.g. 'FY2024'. */
+  period: string
+  incomeStatement: {
+    revenue: number
+    cogs: number
+    grossProfit: number
+    opex: number
+    operatingIncome: number
+    interestExpense: number
+    pretaxIncome: number
+    taxes: number
+    netIncome: number
+    /** Diluted shares outstanding, in millions. */
+    shares: number
+    /** Dollars per share. */
+    eps: number
+  }
+  balanceSheet: {
+    cash: number
+    receivables: number
+    inventory: number
+    currentAssets: number
+    ppe: number
+    goodwill: number
+    totalAssets: number
+    currentLiabilities: number
+    longTermDebt: number
+    totalLiabilities: number
+    equity: number
+  }
+  cashFlow: {
+    /** Cash flow from operations. */
+    cfo: number
+    /** Capital expenditure, reported positive. */
+    capex: number
+    /** Free cash flow = cfo − capex. */
+    fcf: number
+    /** Stock-based compensation. */
+    sbc: number
+  }
+}
+
+/**
+ * The three things a financials drill can ask:
+ * - `ratio-calc` — compute one ratio from one company's statements
+ * - `compare`    — judge two companies side by side
+ * - `red-flag`   — decide what in one company's statements deserves scrutiny
+ */
+export type FinDrillKind = 'ratio-calc' | 'compare' | 'red-flag'
+
+/**
+ * One read-the-financials question.
+ *
+ * All three kinds are **multiple choice**, including `ratio-calc`. Free numeric
+ * entry would be a keypad-and-tolerance problem on a phone, and it tests the
+ * same skill less well: a choice set whose distractors are the specific
+ * miscalculations a learner actually makes (inverted ratio, quick ratio
+ * computed instead of current, denominator swapped for total assets) forces the
+ * learner to get the *formula* right, not just to arrive near a number.
+ *
+ * `statementIds` holds one id for `ratio-calc` and `red-flag`, two for
+ * `compare`, referencing `FinStatementSnapshot.id`.
+ */
+export interface FinDrillDef {
+  id: string
+  kind: FinDrillKind
+  statementIds: string[]
+  prompt: string
+  choices: [string, string, string, string]
+  answerIdx: 0 | 1 | 2 | 3
+  /** Worked solution: the real arithmetic, plus what each distractor got wrong. */
+  explain: string
 }

@@ -1,0 +1,458 @@
+[
+  {
+    "id": "northwind-systems",
+    "company": "Northwind Systems",
+    "sector": "Software",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 4200,
+      "cogs": 840,
+      "grossProfit": 3360,
+      "opex": 2310,
+      "operatingIncome": 1050,
+      "interestExpense": 40,
+      "pretaxIncome": 1010,
+      "taxes": 202,
+      "netIncome": 808,
+      "shares": 400,
+      "eps": 2.02
+    },
+    "balanceSheet": {
+      "cash": 2400,
+      "receivables": 900,
+      "inventory": 0,
+      "currentAssets": 3500,
+      "ppe": 620,
+      "goodwill": 1880,
+      "totalAssets": 6000,
+      "currentLiabilities": 1600,
+      "longTermDebt": 900,
+      "totalLiabilities": 2500,
+      "equity": 3500
+    },
+    "cashFlow": {
+      "cfo": 1420,
+      "capex": 180,
+      "fcf": 1240,
+      "sbc": 520
+    }
+  },
+  {
+    "id": "harborline-grocers",
+    "company": "Harborline Grocers",
+    "sector": "Grocery",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 28500,
+      "cogs": 21375,
+      "grossProfit": 7125,
+      "opex": 6270,
+      "operatingIncome": 855,
+      "interestExpense": 155,
+      "pretaxIncome": 700,
+      "taxes": 168,
+      "netIncome": 532,
+      "shares": 266,
+      "eps": 2
+    },
+    "balanceSheet": {
+      "cash": 480,
+      "receivables": 320,
+      "inventory": 2100,
+      "currentAssets": 3050,
+      "ppe": 6400,
+      "goodwill": 550,
+      "totalAssets": 10000,
+      "currentLiabilities": 3600,
+      "longTermDebt": 3100,
+      "totalLiabilities": 6700,
+      "equity": 3300
+    },
+    "cashFlow": {
+      "cfo": 1180,
+      "capex": 700,
+      "fcf": 480,
+      "sbc": 45
+    }
+  },
+  {
+    "id": "halden-industrial",
+    "company": "Halden Industrial",
+    "sector": "Industrial Machinery",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 9600,
+      "cogs": 6528,
+      "grossProfit": 3072,
+      "opex": 1920,
+      "operatingIncome": 1152,
+      "interestExpense": 192,
+      "pretaxIncome": 960,
+      "taxes": 240,
+      "netIncome": 720,
+      "shares": 180,
+      "eps": 4
+    },
+    "balanceSheet": {
+      "cash": 620,
+      "receivables": 1750,
+      "inventory": 2130,
+      "currentAssets": 4700,
+      "ppe": 2900,
+      "goodwill": 1400,
+      "totalAssets": 9000,
+      "currentLiabilities": 2600,
+      "longTermDebt": 2800,
+      "totalLiabilities": 5400,
+      "equity": 3600
+    },
+    "cashFlow": {
+      "cfo": 940,
+      "capex": 380,
+      "fcf": 560,
+      "sbc": 70
+    }
+  },
+  {
+    "id": "beacon-credit",
+    "company": "Beacon Credit Group",
+    "sector": "Consumer Lending",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 3400,
+      "cogs": 1360,
+      "grossProfit": 2040,
+      "opex": 900,
+      "operatingIncome": 1140,
+      "interestExpense": 340,
+      "pretaxIncome": 800,
+      "taxes": 200,
+      "netIncome": 600,
+      "shares": 150,
+      "eps": 4
+    },
+    "balanceSheet": {
+      "cash": 3200,
+      "receivables": 21000,
+      "inventory": 0,
+      "currentAssets": 24500,
+      "ppe": 400,
+      "goodwill": 1100,
+      "totalAssets": 26000,
+      "currentLiabilities": 4000,
+      "longTermDebt": 18200,
+      "totalLiabilities": 22200,
+      "equity": 3800
+    },
+    "cashFlow": {
+      "cfo": 980,
+      "capex": 60,
+      "fcf": 920,
+      "sbc": 55
+    }
+  },
+  {
+    "id": "brightway-retail",
+    "company": "Brightway Retail",
+    "sector": "Retail",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 6200,
+      "cogs": 3906,
+      "grossProfit": 2294,
+      "opex": 1674,
+      "operatingIncome": 620,
+      "interestExpense": 496,
+      "pretaxIncome": 124,
+      "taxes": 24,
+      "netIncome": 100,
+      "shares": 80,
+      "eps": 1.25
+    },
+    "balanceSheet": {
+      "cash": 95,
+      "receivables": 210,
+      "inventory": 1850,
+      "currentAssets": 2210,
+      "ppe": 1240,
+      "goodwill": 2350,
+      "totalAssets": 5800,
+      "currentLiabilities": 1450,
+      "longTermDebt": 3400,
+      "totalLiabilities": 4850,
+      "equity": 950
+    },
+    "cashFlow": {
+      "cfo": 22,
+      "capex": 140,
+      "fcf": -118,
+      "sbc": 18
+    }
+  },
+  {
+    "id": "verity-therapeutics",
+    "company": "Verity Therapeutics",
+    "sector": "Pharmaceuticals",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 7800,
+      "cogs": 1560,
+      "grossProfit": 6240,
+      "opex": 4290,
+      "operatingIncome": 1950,
+      "interestExpense": 210,
+      "pretaxIncome": 1740,
+      "taxes": 261,
+      "netIncome": 1479,
+      "shares": 340,
+      "eps": 4.35
+    },
+    "balanceSheet": {
+      "cash": 3100,
+      "receivables": 1620,
+      "inventory": 980,
+      "currentAssets": 6000,
+      "ppe": 2400,
+      "goodwill": 4600,
+      "totalAssets": 13000,
+      "currentLiabilities": 2900,
+      "longTermDebt": 4300,
+      "totalLiabilities": 7200,
+      "equity": 5800
+    },
+    "cashFlow": {
+      "cfo": 2260,
+      "capex": 460,
+      "fcf": 1800,
+      "sbc": 320
+    }
+  },
+  {
+    "id": "skyline-air",
+    "company": "Skyline Air",
+    "sector": "Airline",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 14200,
+      "cogs": 11928,
+      "grossProfit": 2272,
+      "opex": 1420,
+      "operatingIncome": 852,
+      "interestExpense": 480,
+      "pretaxIncome": 372,
+      "taxes": 93,
+      "netIncome": 279,
+      "shares": 186,
+      "eps": 1.5
+    },
+    "balanceSheet": {
+      "cash": 2400,
+      "receivables": 620,
+      "inventory": 480,
+      "currentAssets": 3700,
+      "ppe": 14800,
+      "goodwill": 500,
+      "totalAssets": 19000,
+      "currentLiabilities": 5600,
+      "longTermDebt": 9100,
+      "totalLiabilities": 14700,
+      "equity": 4300
+    },
+    "cashFlow": {
+      "cfo": 1980,
+      "capex": 1850,
+      "fcf": 130,
+      "sbc": 40
+    }
+  },
+  {
+    "id": "maison-rivelle",
+    "company": "Maison Rivelle",
+    "sector": "Luxury Goods",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 11000,
+      "cogs": 3300,
+      "grossProfit": 7700,
+      "opex": 4620,
+      "operatingIncome": 3080,
+      "interestExpense": 55,
+      "pretaxIncome": 3025,
+      "taxes": 726,
+      "netIncome": 2299,
+      "shares": 220,
+      "eps": 10.45
+    },
+    "balanceSheet": {
+      "cash": 3600,
+      "receivables": 900,
+      "inventory": 2900,
+      "currentAssets": 7700,
+      "ppe": 3200,
+      "goodwill": 1600,
+      "totalAssets": 12500,
+      "currentLiabilities": 2600,
+      "longTermDebt": 1100,
+      "totalLiabilities": 3700,
+      "equity": 8800
+    },
+    "cashFlow": {
+      "cfo": 2650,
+      "capex": 620,
+      "fcf": 2030,
+      "sbc": 95
+    }
+  },
+  {
+    "id": "cobalt-cloud",
+    "company": "Cobalt Cloud",
+    "sector": "SaaS",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 1800,
+      "cogs": 450,
+      "grossProfit": 1350,
+      "opex": 1530,
+      "operatingIncome": -180,
+      "interestExpense": 12,
+      "pretaxIncome": -192,
+      "taxes": 8,
+      "netIncome": -200,
+      "shares": 250,
+      "eps": -0.8
+    },
+    "balanceSheet": {
+      "cash": 1450,
+      "receivables": 380,
+      "inventory": 0,
+      "currentAssets": 1950,
+      "ppe": 210,
+      "goodwill": 640,
+      "totalAssets": 2800,
+      "currentLiabilities": 900,
+      "longTermDebt": 300,
+      "totalLiabilities": 1200,
+      "equity": 1600
+    },
+    "cashFlow": {
+      "cfo": 145,
+      "capex": 55,
+      "fcf": 90,
+      "sbc": 396
+    }
+  },
+  {
+    "id": "granite-power",
+    "company": "Granite Power & Light",
+    "sector": "Utility",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 8400,
+      "cogs": 5040,
+      "grossProfit": 3360,
+      "opex": 1512,
+      "operatingIncome": 1848,
+      "interestExpense": 728,
+      "pretaxIncome": 1120,
+      "taxes": 224,
+      "netIncome": 896,
+      "shares": 320,
+      "eps": 2.8
+    },
+    "balanceSheet": {
+      "cash": 210,
+      "receivables": 980,
+      "inventory": 340,
+      "currentAssets": 1700,
+      "ppe": 24100,
+      "goodwill": 1200,
+      "totalAssets": 27000,
+      "currentLiabilities": 2900,
+      "longTermDebt": 14300,
+      "totalLiabilities": 17200,
+      "equity": 9800
+    },
+    "cashFlow": {
+      "cfo": 2450,
+      "capex": 2900,
+      "fcf": -450,
+      "sbc": 30
+    }
+  },
+  {
+    "id": "ridgeline-homes",
+    "company": "Ridgeline Homes",
+    "sector": "Homebuilding",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 5600,
+      "cogs": 4368,
+      "grossProfit": 1232,
+      "opex": 616,
+      "operatingIncome": 616,
+      "interestExpense": 84,
+      "pretaxIncome": 532,
+      "taxes": 133,
+      "netIncome": 399,
+      "shares": 57,
+      "eps": 7
+    },
+    "balanceSheet": {
+      "cash": 720,
+      "receivables": 130,
+      "inventory": 4900,
+      "currentAssets": 5900,
+      "ppe": 260,
+      "goodwill": 40,
+      "totalAssets": 6200,
+      "currentLiabilities": 900,
+      "longTermDebt": 1700,
+      "totalLiabilities": 2600,
+      "equity": 3600
+    },
+    "cashFlow": {
+      "cfo": -180,
+      "capex": 45,
+      "fcf": -225,
+      "sbc": 32
+    }
+  },
+  {
+    "id": "silica-micro",
+    "company": "Silica Micro",
+    "sector": "Semiconductors",
+    "period": "FY2024",
+    "incomeStatement": {
+      "revenue": 6900,
+      "cogs": 3105,
+      "grossProfit": 3795,
+      "opex": 2277,
+      "operatingIncome": 1518,
+      "interestExpense": 138,
+      "pretaxIncome": 1380,
+      "taxes": 207,
+      "netIncome": 1173,
+      "shares": 230,
+      "eps": 5.1
+    },
+    "balanceSheet": {
+      "cash": 2900,
+      "receivables": 1180,
+      "inventory": 1620,
+      "currentAssets": 5900,
+      "ppe": 4900,
+      "goodwill": 1700,
+      "totalAssets": 12500,
+      "currentLiabilities": 1900,
+      "longTermDebt": 2600,
+      "totalLiabilities": 4500,
+      "equity": 8000
+    },
+    "cashFlow": {
+      "cfo": 2010,
+      "capex": 1240,
+      "fcf": 770,
+      "sbc": 410
+    }
+  }
+]

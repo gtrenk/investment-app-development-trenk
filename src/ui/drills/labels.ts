@@ -20,6 +20,11 @@ export const KIND_COPY: Record<DrillKind, { title: string; icon: string; blurb: 
     icon: '🎲',
     blurb: 'Call the next 10 bars on a masked chart — and say how sure you are.',
   },
+  financials: {
+    title: 'Read the Financials',
+    icon: '📄',
+    blurb: 'Work a ratio, weigh two companies, or find the line that does not add up.',
+  },
 }
 
 export interface OutcomeCopy {

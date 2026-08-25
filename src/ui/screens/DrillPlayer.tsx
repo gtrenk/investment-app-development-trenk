@@ -712,9 +712,10 @@ export function DrillPlayer() {
 
   if (!daily) return <Failed message="No drills are authored yet." />
 
-  return daily.kind === 'pattern' ? (
-    <PatternDrill def={daily.def} />
-  ) : (
-    <WhatNextDrill def={daily.def} />
-  )
+  if (daily.kind === 'pattern') return <PatternDrill def={daily.def} />
+  if (daily.kind === 'whatnext') return <WhatNextDrill def={daily.def} />
+  // `pickDailyDrill` is called without `finDefs` here, so the three-kind
+  // rotation is off and this branch is unreachable — until the read-the-
+  // financials player lands and FIN_DRILLS is passed in above.
+  return <Failed message="Read-the-financials drills are not wired up yet." />
 }

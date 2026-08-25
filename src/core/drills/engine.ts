@@ -8,6 +8,7 @@ import type {
   Confidence,
   DrillHistory,
   DrillKind,
+  FinDrillDef,
   PatternDrillDef,
   WhatNextDrillDef,
 } from '@core/types'
@@ -83,6 +84,7 @@ export const DRILL_EXCLUSION_DAYS = 60
 export type DailyDrill =
   | { kind: 'pattern'; def: PatternDrillDef }
   | { kind: 'whatnext'; def: WhatNextDrillDef }
+  | { kind: 'financials'; def: FinDrillDef }
 
 const EPOCH = '1970-01-01'
 
@@ -113,12 +115,31 @@ export function dayOfEpoch(date: string): number {
 }
 
 /**
- * Which kind of drill today is. Alternates strictly day by day off the
- * day-of-epoch parity, so the two kinds interleave without consulting history
- * and a skipped day does not desynchronise the rotation.
+ * The rotation order, longest first. Day-of-epoch modulo the rotation length
+ * picks the entry, so the cycle is a pure function of the date: it never
+ * consults history, and skipping a day cannot desynchronise it.
  */
-export function drillKindForDay(date: string): DrillKind {
-  return dayOfEpoch(date) % 2 === 0 ? 'pattern' : 'whatnext'
+export const DRILL_ROTATION_2: readonly DrillKind[] = ['pattern', 'whatnext']
+export const DRILL_ROTATION_3: readonly DrillKind[] = ['pattern', 'whatnext', 'financials']
+
+/**
+ * Which kind of drill today is.
+ *
+ * By default this is the original two-kind alternation off day-of-epoch parity
+ * (`1970-01-01` → pattern, `1970-01-02` → whatnext, …). Pass
+ * `includeFinancials` to get the three-kind round robin
+ * (pattern → whatnext → financials) used once financials drills are loaded.
+ *
+ * Both cycles start on `pattern` at the epoch, so the two agree on every day
+ * divisible by 6 and the switch never lands a learner mid-cycle on a kind that
+ * does not exist.
+ */
+export function drillKindForDay(date: string, includeFinancials = false): DrillKind {
+  const rotation = includeFinancials ? DRILL_ROTATION_3 : DRILL_ROTATION_2
+  // Floored modulo: dates before 1970 give a negative day-of-epoch, and a
+  // negative index would read off the front of the array.
+  const n = dayOfEpoch(date) % rotation.length
+  return rotation[(n + rotation.length) % rotation.length]
 }
 
 /** Ids answered *correctly* within the exclusion window ending at `today`. */
@@ -132,17 +153,37 @@ function recentlyMastered(history: DrillHistory, today: string): Set<string> {
   return out
 }
 
+type AnyDrillDef = PatternDrillDef | WhatNextDrillDef | FinDrillDef
+
+/** Rebuild the tagged union from the kind that produced the pool. */
+function asDailyDrill(kind: DrillKind, def: AnyDrillDef): DailyDrill {
+  switch (kind) {
+    case 'pattern':
+      return { kind: 'pattern', def: def as PatternDrillDef }
+    case 'whatnext':
+      return { kind: 'whatnext', def: def as WhatNextDrillDef }
+    case 'financials':
+      return { kind: 'financials', def: def as FinDrillDef }
+  }
+}
+
 /**
  * Pick the one drill for `today`.
  *
- * - the kind alternates by day-of-epoch parity (`drillKindForDay`)
+ * - the kind comes from `drillKindForDay`: a two-kind alternation while
+ *   `finDefs` is empty, a three-kind round robin once financials drills are
+ *   supplied (pattern → whatnext → financials)
  * - drills answered correctly in the last 60 days are skipped
- * - if that empties the preferred pool, the other kind is tried; if both are
- *   exhausted the exclusion is dropped rather than showing nothing
+ * - if that empties the preferred pool, the remaining kinds are tried in
+ *   rotation order; if every pool is exhausted the exclusion is dropped rather
+ *   than showing nothing
  * - selection is deterministic: the default `rng` is seeded from `today`, so
  *   the same day always yields the same drill for the same history
  *
- * Returns `null` only when both definition lists are empty.
+ * `finDefs` is last and optional so every existing four- and five-argument call
+ * site keeps its exact previous behaviour, two-kind rotation included.
+ *
+ * Returns `null` only when every definition list is empty.
  */
 export function pickDailyDrill(
   patternDefs: readonly PatternDrillDef[],
@@ -150,26 +191,37 @@ export function pickDailyDrill(
   history: DrillHistory,
   today: string,
   rng: () => number = mulberry32(hashString(today)),
+  finDefs: readonly FinDrillDef[] = [],
 ): DailyDrill | null {
-  const kind = drillKindForDay(today)
+  const includeFinancials = finDefs.length > 0
+  const rotation = includeFinancials ? DRILL_ROTATION_3 : DRILL_ROTATION_2
+  const kind = drillKindForDay(today, includeFinancials)
   const mastered = recentlyMastered(history, today)
 
-  const patternPool = patternDefs.filter((d) => !mastered.has(d.id))
-  const whatnextPool = whatnextDefs.filter((d) => !mastered.has(d.id))
+  const all: Record<DrillKind, readonly AnyDrillDef[]> = {
+    pattern: patternDefs,
+    whatnext: whatnextDefs,
+    financials: finDefs,
+  }
 
-  // Preferred kind first, then the other, then ignore the exclusion entirely.
-  const order: Array<[DrillKind, readonly PatternDrillDef[] | readonly WhatNextDrillDef[]]> =
-    kind === 'pattern'
-      ? [['pattern', patternPool], ['whatnext', whatnextPool], ['pattern', patternDefs], ['whatnext', whatnextDefs]]
-      : [['whatnext', whatnextPool], ['pattern', patternPool], ['whatnext', whatnextDefs], ['pattern', patternDefs]]
+  // Preferred kind first, then the rest in rotation order — so a learner whose
+  // pattern pool is exhausted falls through to what-next before financials,
+  // exactly as the two-kind version did.
+  const kinds = rotation.slice(rotation.indexOf(kind)).concat(rotation.slice(0, rotation.indexOf(kind)))
+
+  // First pass honours the 60-day exclusion; second pass drops it.
+  const order: Array<[DrillKind, readonly AnyDrillDef[]]> = [
+    ...kinds.map(
+      (k): [DrillKind, readonly AnyDrillDef[]] => [k, all[k].filter((d) => !mastered.has(d.id))],
+    ),
+    ...kinds.map((k): [DrillKind, readonly AnyDrillDef[]] => [k, all[k]]),
+  ]
 
   for (const [poolKind, pool] of order) {
     if (pool.length === 0) continue
     // One rng draw per attempt keeps the sequence deterministic for a given day.
     const idx = Math.min(pool.length - 1, Math.floor(rng() * pool.length))
-    return poolKind === 'pattern'
-      ? { kind: 'pattern', def: pool[idx] as PatternDrillDef }
-      : { kind: 'whatnext', def: pool[idx] as WhatNextDrillDef }
+    return asDailyDrill(poolKind, pool[idx])
   }
   return null
 }
