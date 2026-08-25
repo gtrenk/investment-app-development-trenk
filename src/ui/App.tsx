@@ -1,9 +1,11 @@
 // ─── App shell & routing ─────────────────────────────────────────────────────
 
 import { useEffect } from 'react'
-import { Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAppStore, appClock } from '@state/useAppStore'
+import { useProfilesStore } from '@state/profiles'
 import { todayQueue } from '@state/selectors'
+import { ProfilePicker } from './screens/ProfilePicker'
 import { TabBar } from './components/TabBar'
 import { CelebrationOverlay } from './components/CelebrationOverlay'
 import { HomeScreen } from './screens/HomeScreen'
@@ -67,16 +69,45 @@ function NotFound() {
 export default function App() {
   const ready = useAppStore((s) => s.ready)
   const hydrate = useAppStore((s) => s.hydrate)
+  const profilesLoaded = useProfilesStore((s) => s.loaded)
+  const activeId = useProfilesStore((s) => s.meta.activeId)
+  const loadProfiles = useProfilesStore((s) => s.load)
+
+  // Two-stage boot: which profile, then that profile's state. The store's own
+  // hydrate() awaits the same memoised registry read, so the order is safe even
+  // though these effects fire independently.
+  useEffect(() => {
+    void loadProfiles()
+  }, [loadProfiles])
 
   useEffect(() => {
-    void hydrate()
-  }, [hydrate])
+    if (activeId) void hydrate()
+  }, [activeId, hydrate])
 
-  if (!ready) return <Splash />
+  // Stage one is still running: nothing at all is known yet.
+  if (!profilesLoaded) return <Splash />
+
+  // The picker reads only the profile registry, so it renders as soon as stage
+  // one lands — whether nobody is signed in (it is then the whole app) or the
+  // signed-in profile's state is still loading behind it.
+  if (!activeId || !ready) {
+    return (
+      <div className="min-h-dvh bg-slate-950 text-slate-100">
+        <Routes>
+          <Route path="/profiles" element={<ProfilePicker />} />
+          <Route
+            path="*"
+            element={activeId ? <Splash /> : <Navigate to="/profiles" replace />}
+          />
+        </Routes>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
       <Routes>
+        <Route path="/profiles" element={<ProfilePicker />} />
         <Route element={<TabLayout />}>
           <Route path="/" element={<HomeScreen />} />
           <Route path="/learn" element={<LearnScreen />} />

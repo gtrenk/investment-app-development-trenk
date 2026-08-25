@@ -5,6 +5,7 @@ import { REVIEW_GOAL_CAP } from '@core/gamification/streak'
 import { badgeById } from '@core/gamification/badges'
 import { answeredToday, drillKindForDay } from '@core/drills/engine'
 import { useAppStore, appClock } from '@state/useAppStore'
+import { activeProfile, useProfilesStore } from '@state/profiles'
 import {
   TOTAL_LESSONS,
   dayLogFor,
@@ -143,11 +144,30 @@ export function HomeScreen() {
   const lessonsDone = lessonsCompletedCount(progress)
   const recentBadges = [...game.badges].slice(-4).reverse()
 
+  const me = useProfilesStore((s) => activeProfile(s.meta))
+
   return (
     <div className="safe-top space-y-5 px-4 pb-4">
-      <header>
-        <p className="text-sm text-slate-500">{greeting(appClock.now())}</p>
-        <h1 className="text-2xl font-extrabold tracking-tight text-white">Today’s quest</h1>
+      <header className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-slate-500">
+            {greeting(appClock.now())}
+            {me ? `, ${me.name}` : ''}
+          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Today’s quest</h1>
+        </div>
+        {me && (
+          <Link
+            to="/profiles"
+            data-testid="profile-chip"
+            data-profile={me.id}
+            aria-label={`Switch profile — currently ${me.name}`}
+            title={`Playing as ${me.name} — switch profile`}
+            className="flex h-11 w-11 min-h-[44px] shrink-0 items-center justify-center rounded-full border border-slate-800 bg-slate-900/70 text-xl active:bg-slate-800"
+          >
+            <span aria-hidden>{me.emoji}</span>
+          </Link>
+        )}
       </header>
 
       <StreakFlame streak={game.streak} goalMet={day.goalMet} />

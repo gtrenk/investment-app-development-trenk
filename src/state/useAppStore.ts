@@ -3,8 +3,7 @@
 // plain data to the UI. No business rules live here that core/ could own.
 
 import { create } from 'zustand'
-import type { Clock } from '@core/clock'
-import { systemClock } from '@core/clock'
+import { appClock } from './clock'
 import type {
   CardId,
   CardState,
@@ -58,24 +57,13 @@ import { isGoalMet, newStreakState, recordGoalMet } from '@core/gamification/str
 import { evaluateBadges } from '@core/gamification/badges'
 import { STORAGE_KEYS, createMemoryStorage } from '@core/storage/adapter'
 import type { StorageAdapter } from '@core/storage/adapter'
-import { idbStorage } from '@platform/idbStorage'
+import { activeProfileStorage } from './profiles'
 import { ALL_UNITS, getLesson } from '@content/units'
 
-// ── Test clock override ──────────────────────────────────────────────────────
-// Playwright injects `window.__TEST_CLOCK__` to simulate other days without
-// touching the machine clock. Read lazily so a spec can advance the date
-// mid-session.
-declare global {
-  interface Window {
-    __TEST_CLOCK__?: { today?: string; now?: string }
-  }
-}
-
-export const appClock: Clock = {
-  today: () =>
-    (typeof window !== 'undefined' && window.__TEST_CLOCK__?.today) || systemClock.today(),
-  now: () => (typeof window !== 'undefined' && window.__TEST_CLOCK__?.now) || systemClock.now(),
-}
+// The clock (and its Playwright override) lives in its own module so the
+// profile boot path can share it without importing the store. Re-exported
+// because every screen already imports it from here.
+export { appClock } from './clock'
 
 /**
  * Units planned for the finished curriculum (only two are authored so far).
@@ -222,15 +210,6 @@ function settle(
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
-function pickStorage(): StorageAdapter {
-  try {
-    if (typeof indexedDB !== 'undefined') return idbStorage
-  } catch {
-    /* private mode / blocked storage — fall through */
-  }
-  return createMemoryStorage()
-}
-
 // ── Paper trading ────────────────────────────────────────────────────────────
 
 export interface TradeRequest {
@@ -315,27 +294,49 @@ export interface AppState {
   resetAll: () => Promise<void>
 }
 
-const storage = pickStorage()
+/**
+ * Where this session persists. Swapped in `hydrate()` for the signed-in
+ * profile's namespaced view of the real store — until then it is a throwaway,
+ * so a stray write before sign-in can never land in someone else's slot.
+ */
+let storage: StorageAdapter = createMemoryStorage()
 
-/** Fire-and-forget write-behind: the UI never waits on persistence. */
+/**
+ * Auto-save, one key at a time.
+ *
+ * There is no dirty buffer and no debounce anywhere in this file: every action
+ * that changes state issues its writes in the same synchronous turn as its
+ * `set`, so at no point does the app hold unsaved progress that a flush-on-exit
+ * hook could rescue. The UI simply does not wait for the write to land.
+ *
+ * A rejected write is surfaced rather than swallowed — a full disk or a blocked
+ * store is exactly the failure this whole scheme exists to notice, and a bare
+ * `void promise` would turn it into a silent unhandled rejection.
+ */
+function write<T>(key: string, value: T): void {
+  void storage.set(key, value).catch((err: unknown) => {
+    console.error(`[tickerquest] failed to save ${key}`, err)
+  })
+}
+
 function persist(s: Pick<AppState, 'progress' | 'srs' | 'game' | 'drillHistory'>): void {
-  void storage.set(STORAGE_KEYS.progress, s.progress)
-  void storage.set(STORAGE_KEYS.srs, s.srs)
-  void storage.set(STORAGE_KEYS.game, s.game)
-  void storage.set(STORAGE_KEYS.drills, s.drillHistory)
+  write(STORAGE_KEYS.progress, s.progress)
+  write(STORAGE_KEYS.srs, s.srs)
+  write(STORAGE_KEYS.game, s.game)
+  write(STORAGE_KEYS.drills, s.drillHistory)
 }
 
 /** The portfolio saves on its own key, so a trade never rewrites the whole app. */
 function persistPortfolio(portfolio: PortfolioState): void {
-  void storage.set(STORAGE_KEYS.portfolio, portfolio)
+  write(STORAGE_KEYS.portfolio, portfolio)
 }
 
 function persistOrders(orders: LimitOrder[]): void {
-  void storage.set(STORAGE_KEYS.orders, orders)
+  write(STORAGE_KEYS.orders, orders)
 }
 
 function persistWatchlist(watchlist: string[]): void {
-  void storage.set(STORAGE_KEYS.watchlist, watchlist)
+  write(STORAGE_KEYS.watchlist, watchlist)
 }
 
 /** Sequential order id: `lo-0001`, `lo-0002`, … */
@@ -356,6 +357,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async hydrate() {
     if (get().ready) return
+    // Point every read and write below at the active profile's namespace. The
+    // keys the store asks for never change — only where they land.
+    storage = await activeProfileStorage()
     const [progress, srs, game, drills, portfolio, orders, watchlist] = await Promise.all([
       storage.get<ProgressState>(STORAGE_KEYS.progress),
       storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
@@ -605,9 +609,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     )
     if (!changed) return
 
-    // Write the resolved book first: `placeTrade` reads and replaces state, and
-    // a fill must never be evaluated twice even if one of them throws.
+    // Write the resolved book first — to state *and* to storage. `placeTrade`
+    // below persists the portfolio as it fills, so if one of those throws (or
+    // the tab dies mid-loop) the book must already say "filled"; otherwise the
+    // next app open would replay the same fill against a portfolio that has
+    // already paid for it.
     set({ openOrders: orders })
+    persistOrders(orders)
 
     const rejected = new Set<string>()
     for (const fill of fills) {

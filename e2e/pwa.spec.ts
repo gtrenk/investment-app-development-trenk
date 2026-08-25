@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test'
+// `test` comes from the shared fixture, which pre-seeds a throwaway profile so
+// this spec still sees the app at '/' — see e2e/fixtures.ts.
+import { expect, test } from './fixtures'
 
 test.describe('PWA shell', () => {
   test('links a manifest and registers a service worker', async ({ page }) => {

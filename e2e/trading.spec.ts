@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test'
+// `test` comes from the shared fixture, which pre-seeds a throwaway profile so
+// this spec still sees the app at '/' — see e2e/fixtures.ts.
+import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { XP_JOURNAL_NOTE } from '../src/core/gamification/xp'
 import { STARTING_CASH } from '../src/core/portfolio/engine'
