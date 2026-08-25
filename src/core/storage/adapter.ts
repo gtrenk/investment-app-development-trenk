@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   srs: 'tq.v1.srs',
   game: 'tq.v1.game',
   portfolio: 'tq.v1.portfolio',
+  drills: 'tq.v1.drills',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

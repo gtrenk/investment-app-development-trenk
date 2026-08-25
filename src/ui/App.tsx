@@ -11,6 +11,8 @@ import { LearnScreen } from './screens/LearnScreen'
 import { LessonPlayer } from './screens/LessonPlayer'
 import { ReviewScreen } from './screens/ReviewScreen'
 import { DrillsScreen } from './screens/DrillsScreen'
+import { DrillPlayer } from './screens/DrillPlayer'
+import { DrillStatsScreen } from './screens/DrillStatsScreen'
 import { PortfolioScreen } from './screens/PortfolioScreen'
 
 function Splash() {
@@ -81,6 +83,8 @@ export default function App() {
         </Route>
         <Route element={<FocusLayout />}>
           <Route path="/lesson/:id" element={<LessonPlayer />} />
+          <Route path="/drill" element={<DrillPlayer />} />
+          <Route path="/drill-stats" element={<DrillStatsScreen />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

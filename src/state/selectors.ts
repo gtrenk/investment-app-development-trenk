@@ -2,7 +2,18 @@
 // Plain functions of state — deliberately not hooks, so screens can call them
 // inside a single `useAppStore` subscription without extra re-renders.
 
-import type { CardId, CardState, DayLog, Lesson, ProgressState, Unit } from '@core/types'
+import type {
+  CardId,
+  CardState,
+  DayLog,
+  DrillHistory,
+  DrillKind,
+  DrillResult,
+  Lesson,
+  ProgressState,
+  Unit,
+} from '@core/types'
+import { addDays } from '@core/clock'
 import { buildQueue } from '@core/srs/scheduler'
 import { ALL_LESSONS, ALL_UNITS } from '@content/units'
 import { emptyDay } from './useAppStore'
@@ -53,4 +64,50 @@ export function todayQueue(srs: Record<CardId, CardState>, today: string): CardI
 
 export function dayLogFor(state: Pick<AppState, 'game'>, today: string): DayLog {
   return state.game.dailyLog[today] ?? emptyDay()
+}
+
+// ── Drills ───────────────────────────────────────────────────────────────────
+
+/** Every result recorded on `date` (normally 0 or 1 — one drill a day). */
+export function drillResultsOn(history: DrillHistory, date: string): DrillResult[] {
+  return history.results.filter((r) => r.date === date)
+}
+
+/**
+ * Consecutive days ending today on which a drill was answered.
+ *
+ * Today not being done yet does not break the run — the streak is counted back
+ * from yesterday in that case, so opening the app in the morning still shows
+ * "3 days" rather than a demoralising 0.
+ */
+export function drillDayStreak(history: DrillHistory, today: string): number {
+  const days = new Set(history.results.map((r) => r.date))
+  if (days.size === 0) return 0
+  let cursor = days.has(today) ? today : addDays(today, -1)
+  let n = 0
+  while (days.has(cursor)) {
+    n++
+    cursor = addDays(cursor, -1)
+  }
+  return n
+}
+
+export interface DrillKindTotals {
+  kind: DrillKind
+  answered: number
+  correct: number
+}
+
+/** Answered/correct counts per drill kind, in a stable order for the stats page. */
+export function drillTotalsByKind(history: DrillHistory): DrillKindTotals[] {
+  const kinds: DrillKind[] = ['pattern', 'whatnext']
+  return kinds.map((kind) => {
+    const mine = history.results.filter((r) => r.kind === kind)
+    return { kind, answered: mine.length, correct: mine.filter((r) => r.correct).length }
+  })
+}
+
+/** How many answers carry a confidence — the calibration chart's sample size. */
+export function confidenceSampleSize(history: DrillHistory): number {
+  return history.results.filter((r) => r.confidence !== undefined).length
 }

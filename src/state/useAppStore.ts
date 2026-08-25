@@ -9,6 +9,8 @@ import type {
   CardId,
   CardState,
   DayLog,
+  DrillHistory,
+  DrillResult,
   EarnedBadge,
   GameState,
   Grade,
@@ -19,6 +21,8 @@ import type {
 import { newCardState, applyGrade } from '@core/srs/sm2'
 import { buildQueue } from '@core/srs/scheduler'
 import {
+  XP_DRILL,
+  XP_DRILL_CORRECT_BONUS,
   XP_LESSON,
   XP_PER_CARD,
   XP_QUIZ_ITEM,
@@ -79,6 +83,10 @@ export function emptyDay(): DayLog {
   return { reviews: 0, lessons: 0, drills: 0, xp: 0, goalMet: false }
 }
 
+export function emptyDrills(): DrillHistory {
+  return { results: [] }
+}
+
 function dayOf(game: GameState, date: string): DayLog {
   return game.dailyLog[date] ?? emptyDay()
 }
@@ -95,7 +103,11 @@ function totalReviewsIn(game: GameState): number {
   return Object.values(game.dailyLog).reduce((sum, d) => sum + d.reviews, 0)
 }
 
-export function statsSnapshot(progress: ProgressState, game: GameState): Stats {
+export function statsSnapshot(
+  progress: ProgressState,
+  game: GameState,
+  drills: DrillHistory = emptyDrills(),
+): Stats {
   return {
     totalXp: game.xp,
     level: levelFor(game.xp),
@@ -105,7 +117,7 @@ export function statsSnapshot(progress: ProgressState, game: GameState): Stats {
     totalReviews: totalReviewsIn(game),
     streakCurrent: game.streak.current,
     streakLongest: game.streak.longest,
-    drillsCorrect: 0, // Phase 2
+    drillsCorrect: drills.results.filter((r) => r.correct).length,
     tradesPlaced: 0, // Phase 3
   }
 }
@@ -137,6 +149,7 @@ function awardXp(game: GameState, amount: number, today: string, out: Celebratio
 function settle(
   progress: ProgressState,
   srs: Record<CardId, CardState>,
+  drills: DrillHistory,
   game: GameState,
   today: string,
   out: Celebration[],
@@ -158,7 +171,11 @@ function settle(
     }
   }
 
-  const fresh: EarnedBadge[] = evaluateBadges(statsSnapshot(progress, next), next.badges, today)
+  const fresh: EarnedBadge[] = evaluateBadges(
+    statsSnapshot(progress, next, drills),
+    next.badges,
+    today,
+  )
   if (fresh.length > 0) {
     next = { ...next, badges: [...next.badges, ...fresh] }
     for (const b of fresh) out.push({ id: celebrationId(), kind: 'badge', badgeId: b.id })
@@ -182,6 +199,7 @@ export interface AppState {
   progress: ProgressState
   srs: Record<CardId, CardState>
   game: GameState
+  drillHistory: DrillHistory
   pendingCelebrations: Celebration[]
 
   hydrate: () => Promise<void>
@@ -189,6 +207,7 @@ export interface AppState {
   answerQuiz: (itemId: string, correctFirstTry: boolean) => void
   gradeCard: (cardId: CardId, grade: Grade) => void
   finishReviewSession: (cardCount: number) => void
+  recordDrillResult: (result: DrillResult) => void
   dismissCelebration: () => void
   resetAll: () => Promise<void>
 }
@@ -196,10 +215,11 @@ export interface AppState {
 const storage = pickStorage()
 
 /** Fire-and-forget write-behind: the UI never waits on persistence. */
-function persist(s: Pick<AppState, 'progress' | 'srs' | 'game'>): void {
+function persist(s: Pick<AppState, 'progress' | 'srs' | 'game' | 'drillHistory'>): void {
   void storage.set(STORAGE_KEYS.progress, s.progress)
   void storage.set(STORAGE_KEYS.srs, s.srs)
   void storage.set(STORAGE_KEYS.game, s.game)
+  void storage.set(STORAGE_KEYS.drills, s.drillHistory)
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -207,19 +227,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   progress: emptyProgress(),
   srs: {},
   game: emptyGame(),
+  drillHistory: emptyDrills(),
   pendingCelebrations: [],
 
   async hydrate() {
     if (get().ready) return
-    const [progress, srs, game] = await Promise.all([
+    const [progress, srs, game, drills] = await Promise.all([
       storage.get<ProgressState>(STORAGE_KEYS.progress),
       storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
       storage.get<GameState>(STORAGE_KEYS.game),
+      storage.get<DrillHistory>(STORAGE_KEYS.drills),
     ])
     set({
       progress: { ...emptyProgress(), ...(progress ?? {}) },
       srs: srs ?? {},
       game: { ...emptyGame(), ...(game ?? {}) },
+      drillHistory: { results: drills?.results ?? [] },
       ready: true,
     })
   },
@@ -250,9 +273,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       dailyLog: { ...state.game.dailyLog, [today]: { ...day, lessons: day.lessons + 1 } },
     }
     game = awardXp(game, XP_LESSON, today, out)
-    game = settle(progress, srs, game, today, out)
+    game = settle(progress, srs, state.drillHistory, game, today, out)
 
-    const next = { progress, srs, game }
+    const next = { progress, srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
     persist(next)
   },
@@ -269,9 +292,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       firstTryCorrect: [...state.progress.firstTryCorrect, itemId],
     }
     let game = awardXp(state.game, XP_QUIZ_ITEM, today, out)
-    game = settle(progress, state.srs, game, today, out)
+    game = settle(progress, state.srs, state.drillHistory, game, today, out)
 
-    const next = { progress, srs: state.srs, game }
+    const next = { progress, srs: state.srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
     persist(next)
   },
@@ -288,7 +311,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       dailyLog: { ...state.game.dailyLog, [today]: { ...day, reviews: day.reviews + 1 } },
     }
 
-    const next = { progress: state.progress, srs, game }
+    const next = { progress: state.progress, srs, game, drillHistory: state.drillHistory }
     set(next)
     persist(next)
   },
@@ -305,9 +328,43 @@ export const useAppStore = create<AppState>((set, get) => ({
       today,
       out,
     )
-    game = settle(state.progress, state.srs, game, today, out)
+    game = settle(state.progress, state.srs, state.drillHistory, game, today, out)
 
-    const next = { progress: state.progress, srs: state.srs, game }
+    const next = { progress: state.progress, srs: state.srs, game, drillHistory: state.drillHistory }
+    set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
+    persist(next)
+  },
+
+  /**
+   * Record one answered drill: append it to the history, count it against
+   * today's activity, award XP, and run the same goal/badge settle path every
+   * other action uses.
+   *
+   * Idempotent per (drillId, date) so a double-tap or a StrictMode double
+   * invoke cannot pay out twice. Note the XP is *flat* — the signed drill score
+   * (which can be −5 for a confident miss) lives in the history, but XP is a
+   * lifetime counter that must never go backwards.
+   */
+  recordDrillResult(result) {
+    const state = get()
+    const already = state.drillHistory.results.some(
+      (r) => r.drillId === result.drillId && r.date === result.date,
+    )
+    if (already) return
+
+    const today = result.date
+    const out: Celebration[] = []
+    const drillHistory: DrillHistory = { results: [...state.drillHistory.results, result] }
+
+    const day = dayOf(state.game, today)
+    let game: GameState = {
+      ...state.game,
+      dailyLog: { ...state.game.dailyLog, [today]: { ...day, drills: day.drills + 1 } },
+    }
+    game = awardXp(game, XP_DRILL + (result.correct ? XP_DRILL_CORRECT_BONUS : 0), today, out)
+    game = settle(state.progress, state.srs, drillHistory, game, today, out)
+
+    const next = { progress: state.progress, srs: state.srs, game, drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
     persist(next)
   },
@@ -317,12 +374,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   async resetAll() {
-    const next = { progress: emptyProgress(), srs: {}, game: emptyGame() }
+    const next = { progress: emptyProgress(), srs: {}, game: emptyGame(), drillHistory: emptyDrills() }
     set({ ...next, pendingCelebrations: [] })
     await Promise.all([
       storage.del(STORAGE_KEYS.progress),
       storage.del(STORAGE_KEYS.srs),
       storage.del(STORAGE_KEYS.game),
+      storage.del(STORAGE_KEYS.drills),
     ])
   },
 }))

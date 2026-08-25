@@ -3,14 +3,17 @@
 import { Link } from 'react-router-dom'
 import { REVIEW_GOAL_CAP } from '@core/gamification/streak'
 import { badgeById } from '@core/gamification/badges'
+import { answeredToday, drillKindForDay } from '@core/drills/engine'
 import { useAppStore, appClock } from '@state/useAppStore'
 import {
   TOTAL_LESSONS,
   dayLogFor,
+  drillResultsOn,
   lessonsCompletedCount,
   nextLesson,
   todayQueue,
 } from '@state/selectors'
+import { KIND_COPY } from '@ui/drills/labels'
 import { XPBar } from '@ui/components/XPBar'
 import { StreakFlame } from '@ui/components/StreakFlame'
 import { ProgressBar } from '@ui/components/ProgressBar'
@@ -27,11 +30,13 @@ interface TaskProps {
   label: string
   detail: string
   soon?: boolean
+  /** When set the whole row becomes a tap target for that route. */
+  to?: string
 }
 
-function TaskRow({ done, label, detail, soon = false }: TaskProps) {
-  return (
-    <li className="flex items-center gap-3 py-2.5" data-testid="today-task" data-done={done}>
+function TaskRow({ done, label, detail, soon = false, to }: TaskProps) {
+  const body = (
+    <>
       <span
         aria-hidden
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs ${
@@ -50,6 +55,23 @@ function TaskRow({ done, label, detail, soon = false }: TaskProps) {
         </p>
         <p className="text-xs text-slate-500">{detail}</p>
       </div>
+      {to && !done && (
+        <span aria-hidden className="shrink-0 text-slate-600">
+          →
+        </span>
+      )}
+    </>
+  )
+
+  return (
+    <li data-testid="today-task" data-done={done}>
+      {to ? (
+        <Link to={to} className="-mx-2 flex min-h-[44px] items-center gap-3 rounded-xl px-2 py-2.5 active:bg-slate-800/60">
+          {body}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-3 py-2.5">{body}</div>
+      )}
     </li>
   )
 }
@@ -58,8 +80,11 @@ export function HomeScreen() {
   const progress = useAppStore((s) => s.progress)
   const srs = useAppStore((s) => s.srs)
   const game = useAppStore((s) => s.game)
+  const drillHistory = useAppStore((s) => s.drillHistory)
 
   const today = appClock.today()
+  const drillDone = answeredToday(drillHistory, today)
+  const todayDrill = drillResultsOn(drillHistory, today)[0]
   const day = dayLogFor({ game }, today)
   const queue = todayQueue(srs, today)
   const dueNow = queue.length
@@ -110,10 +135,16 @@ export function HomeScreen() {
             }
           />
           <TaskRow
-            done={false}
-            soon
+            done={drillDone}
+            to="/drills"
             label="Daily drill"
-            detail="Chart & valuation drills arrive in the next update"
+            detail={
+              drillDone
+                ? todayDrill && todayDrill.correct
+                  ? `${KIND_COPY[todayDrill.kind].title} — called it`
+                  : `${todayDrill ? KIND_COPY[todayDrill.kind].title : 'Drill'} — logged`
+                : `${KIND_COPY[drillKindForDay(today)].title} — one chart, one call`
+            }
           />
         </ul>
         {reviewTarget > 0 && (
