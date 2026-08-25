@@ -26,5 +26,5 @@
       "@platform/*": ["src/platform/*"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "e2e"]
 }
