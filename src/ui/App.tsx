@@ -13,6 +13,7 @@ import { HomeScreen } from './screens/HomeScreen'
 import { SessionScreen } from './screens/SessionScreen'
 import { LearnScreen } from './screens/LearnScreen'
 import { LessonPlayer } from './screens/LessonPlayer'
+import { PlacementScreen } from './screens/PlacementScreen'
 import { ReviewScreen } from './screens/ReviewScreen'
 import { DrillsScreen } from './screens/DrillsScreen'
 import { DrillPlayer } from './screens/DrillPlayer'
@@ -184,6 +185,7 @@ export default function App() {
         <Route element={<FocusLayout />}>
           <Route path="/session" element={<SessionScreen />} />
           <Route path="/lesson/:id" element={<LessonRoute />} />
+          <Route path="/placement" element={<PlacementScreen />} />
           <Route path="/drill" element={<DrillPlayer />} />
           <Route path="/drill-stats" element={<DrillStatsScreen />} />
           <Route path="/trade" element={<TradeScreen />} />

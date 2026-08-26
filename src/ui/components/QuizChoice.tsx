@@ -1,4 +1,10 @@
-export type ChoiceState = 'idle' | 'correct' | 'wrong' | 'revealed'
+/**
+ * `selected` is the exam state: the tap registered, and the app is deliberately
+ * NOT saying whether it was right. The placement test uses it so a learner
+ * cannot read the answer off the previous question's colour — the marking
+ * happens on the results screen, where the explanations live.
+ */
+export type ChoiceState = 'idle' | 'selected' | 'correct' | 'wrong' | 'revealed'
 
 interface Props {
   index: number
@@ -12,6 +18,7 @@ const LETTERS = ['A', 'B', 'C', 'D']
 
 const SHELL: Record<ChoiceState, string> = {
   idle: 'border-slate-700 bg-slate-900 active:bg-slate-800',
+  selected: 'border-sky-400 bg-sky-500/20 ring-1 ring-sky-400/60',
   correct: 'border-emerald-400 bg-emerald-500/15',
   wrong: 'border-rose-400 bg-rose-500/15',
   revealed: 'border-emerald-500/50 bg-emerald-500/10',
@@ -19,6 +26,7 @@ const SHELL: Record<ChoiceState, string> = {
 
 const BADGE: Record<ChoiceState, string> = {
   idle: 'bg-slate-800 text-slate-400',
+  selected: 'bg-sky-400 text-slate-950',
   correct: 'bg-emerald-400 text-slate-950',
   wrong: 'bg-rose-400 text-slate-950',
   revealed: 'bg-emerald-500/40 text-emerald-100',

@@ -7,7 +7,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { CASES, CASE_ORDER } from '@content/cases'
-import { caseItems, caseThesisCount, isCaseUnlocked } from '@core/cases/progress'
+import { XP_CASE_QUESTION, caseItems, caseThesisCount, completionXp, isCaseUnlocked } from '@core/cases/progress'
 import type { CaseStudy } from '@core/types'
 import { useCasesStore } from '@state/cases'
 
@@ -113,6 +113,14 @@ export function CasesScreen() {
   const completed = useCasesStore((s) => s.completed)
   const inProgress = useCasesStore((s) => s.inProgress)
   const pendingXp = useCasesStore((s) => s.pendingXp)
+  // Lifetime case XP: completed cases' credit (drained into the main XP total at
+  // finish) plus whatever an in-progress case has accrued but not yet claimed.
+  const lifetimeCaseXp =
+    pendingXp +
+    Object.entries(completed).reduce(
+      (sum, [id, c]) => sum + c.score * XP_CASE_QUESTION + completionXp(id),
+      0,
+    )
 
   useEffect(() => {
     void hydrate()
@@ -151,9 +159,9 @@ export function CasesScreen() {
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3.5">
           <p className="text-2xl font-extrabold tabular-nums text-white" data-testid="cases-xp">
-            {pendingXp}
+            {lifetimeCaseXp}
           </p>
-          <p className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-500">XP banked</p>
+          <p className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-500">case XP earned</p>
         </div>
       </section>
 

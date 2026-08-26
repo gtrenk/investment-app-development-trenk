@@ -16,6 +16,15 @@ export const XP_DRILL = 15
 export const XP_DRILL_CORRECT_BONUS = 10
 /** Attaching a written rationale to a paper trade. */
 export const XP_JOURNAL_NOTE = 5
+/**
+ * Testing out of one unit in the placement test.
+ *
+ * Flat, and deliberately far below what studying the unit pays (8–10 lessons
+ * at XP_LESSON each, plus their quiz items): the placement test proves you
+ * already knew it, and paying full price for knowledge the app did not teach
+ * would make the leaderboard a measure of prior experience. Credit, not wages.
+ */
+export const XP_PLACEMENT_UNIT = 15
 
 // ── Level curve ──
 /** XP required at level 1 to reach level 2. */

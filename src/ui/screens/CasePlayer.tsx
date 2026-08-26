@@ -408,7 +408,7 @@ export function CasePlayer() {
         )}
 
         <p className="text-xs leading-relaxed text-slate-600">
-          {pendingXp} XP banked from case studies so far.
+          Case XP is credited straight to your level — check the bar on Home.
         </p>
 
         <Link

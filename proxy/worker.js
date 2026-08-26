@@ -100,10 +100,12 @@ const SYNC_CORS = {
 export const MAX_BLOB_BYTES = 256 * 1024
 
 /**
- * The only blob names that exist. Seven are the app's per-profile storage keys
- * (see STORAGE_KEYS in src/core/storage/adapter.ts — `quotes` is shared market
- * data and deliberately absent); `profileMeta` carries the {name, emoji} pair so
- * a linked device can show the profile before it has pulled anything else.
+ * The only blob names that exist. All but the last are the app's per-profile
+ * storage keys (see STORAGE_KEYS in src/core/storage/adapter.ts — `quotes` is
+ * shared market data and deliberately absent); `profileMeta` carries the
+ * {name, emoji} pair so a linked device can show the profile before it has
+ * pulled anything else. tests/syncWorker.test.ts asserts this list matches
+ * SYNC_KEYS exactly, so adding a storage key without adding it here fails CI.
  */
 export const SYNC_BLOB_KEYS = [
   'tq.v1.progress',
@@ -115,6 +117,7 @@ export const SYNC_BLOB_KEYS = [
   'tq.v1.watchlist',
   'tq.v1.settings',
   'tq.v1.cases',
+  'tq.v1.placement',
   'profileMeta',
 ]
 

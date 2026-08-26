@@ -270,6 +270,32 @@ export function ProfilePicker() {
 
           {editing && <ReadAloudSection profile={editing} isActive={editing.id === meta.activeId} />}
 
+          {/* Only for the signed-in profile: the test writes through the app
+              store, which is pointed at whoever is signed in — offering it while
+              editing someone else would credit the wrong learner. */}
+          {editing && editing.id === meta.activeId && (
+            <button
+              type="button"
+              data-testid="placement-row"
+              onClick={() => navigate('/placement')}
+              className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-left active:bg-slate-800/70"
+            >
+              <span aria-hidden className="shrink-0 text-xl leading-none">
+                🎯
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-100">Placement test</span>
+                <span className="block text-[11px] leading-relaxed text-slate-500">
+                  Test out of units you already know. Retaking only ever adds — nothing already
+                  studied is taken back.
+                </span>
+              </span>
+              <span aria-hidden className="shrink-0 text-slate-600">
+                →
+              </span>
+            </button>
+          )}
+
           {editing && <CloudSyncSection profile={editing} />}
 
           {editing && (

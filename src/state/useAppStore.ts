@@ -32,6 +32,10 @@ import {
   XP_REVIEW_SESSION,
   levelFor,
 } from '@core/gamification/xp'
+import { emptyPlacementRecord, sanitizePlacementRecord } from '@core/placement/record'
+import type { PlacementRecord } from '@core/placement/record'
+import { creditPlacement } from '@core/placement/apply'
+import type { PlacementOutcome } from '@core/placement/engine'
 import {
   executeBuy,
   executeSell,
@@ -285,6 +289,8 @@ export interface AppState {
   watchlist: string[]
   /** Per-profile preferences. Read-aloud lives here; see @core/settings. */
   settings: Settings
+  /** What the placement test credited, and whether its offer was dismissed. */
+  placement: PlacementRecord
   pendingCelebrations: Celebration[]
 
   /**
@@ -300,6 +306,10 @@ export interface AppState {
   recordDrillResult: (result: DrillResult) => void
   /** Award XP earned outside the store (case studies) and run the usual goal/badge settle. */
   awardCaseXp: (amount: number) => void
+  /** Credit the units a placement test passed. Idempotent — see the action. */
+  applyPlacement: (outcome: PlacementOutcome) => void
+  /** Hide the Home placement offer for good. */
+  dismissPlacementOffer: () => void
   placeTrade: (req: TradeRequest) => TradeOutcome
   placeLimitOrder: (req: LimitOrderRequest) => LimitOrderOutcome
   cancelLimitOrder: (id: string) => void
@@ -398,6 +408,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   openOrders: [],
   watchlist: [],
   settings: defaultSettings(),
+  placement: emptyPlacementRecord(),
   pendingCelebrations: [],
 
   async hydrate(force = false) {
@@ -405,16 +416,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Point every read and write below at the active profile's namespace. The
     // keys the store asks for never change — only where they land.
     storage = await activeProfileStorage()
-    const [progress, srs, game, drills, portfolio, orders, watchlist, settings] = await Promise.all([
-      storage.get<ProgressState>(STORAGE_KEYS.progress),
-      storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
-      storage.get<GameState>(STORAGE_KEYS.game),
-      storage.get<DrillHistory>(STORAGE_KEYS.drills),
-      storage.get<PortfolioState>(STORAGE_KEYS.portfolio),
-      storage.get<LimitOrder[]>(STORAGE_KEYS.orders),
-      storage.get<string[]>(STORAGE_KEYS.watchlist),
-      storage.get<unknown>(STORAGE_KEYS.settings),
-    ])
+    const [progress, srs, game, drills, portfolio, orders, watchlist, settings, placement] =
+      await Promise.all([
+        storage.get<ProgressState>(STORAGE_KEYS.progress),
+        storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
+        storage.get<GameState>(STORAGE_KEYS.game),
+        storage.get<DrillHistory>(STORAGE_KEYS.drills),
+        storage.get<PortfolioState>(STORAGE_KEYS.portfolio),
+        storage.get<LimitOrder[]>(STORAGE_KEYS.orders),
+        storage.get<string[]>(STORAGE_KEYS.watchlist),
+        storage.get<unknown>(STORAGE_KEYS.settings),
+        storage.get<unknown>(STORAGE_KEYS.placement),
+      ])
     set({
       progress: { ...emptyProgress(), ...(progress ?? {}) },
       srs: srs ?? {},
@@ -426,6 +439,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       openOrders: Array.isArray(orders) ? orders : [],
       watchlist: Array.isArray(watchlist) ? watchlist.filter((s) => typeof s === 'string') : [],
       settings: sanitizeSettings(settings),
+      placement: sanitizePlacementRecord(placement),
       ready: true,
     })
   },
@@ -555,6 +569,92 @@ export const useAppStore = create<AppState>((set, get) => ({
     )
     set({ game, pendingCelebrations: [...state.pendingCelebrations, ...out] })
     persist({ progress: state.progress, srs: state.srs, game, drillHistory: state.drillHistory })
+  },
+
+  /**
+   * Credit everything a placement test passed.
+   *
+   * THREE DELIBERATE OMISSIONS, each of which would be a bug rather than a
+   * feature:
+   *
+   *   • NO SRS CARDS ARE MINTED. Ten passed units is ~90 lessons, which would
+   *     mint roughly 300 flashcards due on day one. A learner who tested out to
+   *     save time would open the app to a review queue three hours deep and
+   *     never come back. They can study any skipped lesson whenever they like
+   *     (the Learn screen keeps every lesson tappable) and that mints its cards
+   *     the ordinary way.
+   *   • NO PER-LESSON XP. `completeLesson` pays XP_LESSON because a lesson was
+   *     *studied*; nothing was studied here. The flat XP_PLACEMENT_UNIT per unit
+   *     below is the credit instead.
+   *   • NO QUIZ XP for the placement answers. They are an exam, not practice —
+   *     and paying per correct answer would reward retaking the test.
+   *
+   * Idempotent through the placement record's `passedUnits` union: a unit
+   * already credited pays nothing a second time, so a double tap, a reload on
+   * the results screen, or a retake that passes the same units again is free.
+   * Lessons are only ever marked complete — never un-marked (see mergePlacement).
+   */
+  applyPlacement(outcome) {
+    const state = get()
+    const today = appClock.today()
+    const credit = creditPlacement({
+      record: state.placement,
+      outcome,
+      units: ALL_UNITS,
+      completedLessons: state.progress.completedLessons,
+      today,
+    })
+    const { record, newlyPassed } = credit
+
+    // Still write the record when nothing is new: `takenAt` moves, which is
+    // what stops the Home offer card coming back after a no-op retake.
+    if (newlyPassed.length === 0) {
+      set({ placement: record })
+      write(STORAGE_KEYS.placement, record)
+      return
+    }
+
+    const out: Celebration[] = []
+    const completedLessons = { ...state.progress.completedLessons }
+    for (const lessonId of credit.lessonIds) completedLessons[lessonId] = today
+    const progress: ProgressState = { ...state.progress, completedLessons }
+
+    // The day log counts this as one lesson's worth of activity: the daily goal
+    // and the streak both read it, and a learner who just placed out of forty
+    // lessons has plainly done today's work. One, not forty — the goal is a
+    // measure of a day's study, and placement is not forty days of it.
+    const day = dayOf(state.game, today)
+    let game: GameState = {
+      ...state.game,
+      dailyLog: {
+        ...state.game.dailyLog,
+        [today]: { ...day, lessons: day.lessons + (credit.lessonIds.length > 0 ? 1 : 0) },
+      },
+    }
+    game = awardXp(game, credit.xp, today, out)
+    game = settle(
+      progress,
+      state.srs,
+      state.drillHistory,
+      state.portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
+
+    const next = { progress, srs: state.srs, game, drillHistory: state.drillHistory }
+    set({ ...next, placement: record, pendingCelebrations: [...state.pendingCelebrations, ...out] })
+    persist(next)
+    write(STORAGE_KEYS.placement, record)
+  },
+
+  dismissPlacementOffer() {
+    const state = get()
+    if (state.placement.offerDismissed) return
+    const placement: PlacementRecord = { ...state.placement, offerDismissed: true }
+    set({ placement })
+    write(STORAGE_KEYS.placement, placement)
   },
 
   recordDrillResult(result) {
@@ -839,6 +939,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       portfolio: newPortfolio(),
       openOrders: [],
       watchlist: [],
+      placement: emptyPlacementRecord(),
       pendingCelebrations: [],
     })
     const wiped = [
@@ -849,6 +950,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       STORAGE_KEYS.portfolio,
       STORAGE_KEYS.orders,
       STORAGE_KEYS.watchlist,
+      // A wiped profile has not taken the placement test: the credited-units
+      // ledger must go with the progress it credited, or a re-apply would be
+      // silently skipped as "already paid".
+      STORAGE_KEYS.placement,
     ]
     await Promise.all(wiped.map((key) => storage.del(key)))
     // A reset is a change like any other: mark the keys dirty so the cloud copy

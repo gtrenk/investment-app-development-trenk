@@ -85,6 +85,58 @@ function TaskRow({ done, label, detail, soon = false, to }: TaskProps) {
 }
 
 /**
+ * The one-time offer to test out of what you already know.
+ *
+ * Shown only on a genuinely blank profile — zero lessons finished, no placement
+ * ever applied — because the whole proposition is "don't grind units you know",
+ * and a learner already ten lessons in has answered that question by doing it.
+ * Dismissing is permanent (the flag persists); the profile panel keeps a
+ * permanent, low-key way back in, so nothing is unreachable.
+ */
+function PlacementOffer() {
+  const lessonsDone = useAppStore((s) => lessonsCompletedCount(s.progress))
+  const placement = useAppStore((s) => s.placement)
+  const dismiss = useAppStore((s) => s.dismissPlacementOffer)
+
+  if (lessonsDone > 0 || placement.takenAt !== null || placement.offerDismissed) return null
+
+  return (
+    <section
+      data-testid="placement-offer"
+      className="relative rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4"
+    >
+      <button
+        type="button"
+        data-testid="placement-offer-dismiss"
+        aria-label="Dismiss the placement test offer"
+        onClick={dismiss}
+        className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 active:bg-slate-800/60"
+      >
+        <span aria-hidden>✕</span>
+      </button>
+      <div className="flex items-start gap-3 pr-8">
+        <span aria-hidden className="shrink-0 text-2xl leading-none">
+          🎯
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-bold text-white">Been around markets before?</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-slate-300">
+            Take the 15-minute placement test — skip what you already know.
+          </p>
+        </div>
+      </div>
+      <Link
+        to="/placement"
+        data-testid="placement-offer-start"
+        className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-sky-400 px-5 font-bold text-slate-950 active:bg-sky-300"
+      >
+        Take the placement test
+      </Link>
+    </section>
+  )
+}
+
+/**
  * Compact paper-account tile. Hidden until the benchmark exists — before the
  * first trade there is no equity curve to summarise and the Portfolio tab's own
  * empty state does that job better.
@@ -182,6 +234,8 @@ export function HomeScreen() {
           </Link>
         )}
       </header>
+
+      <PlacementOffer />
 
       <StreakFlame streak={game.streak} goalMet={day.goalMet} />
 

@@ -33,6 +33,18 @@ export const STORAGE_KEYS = {
   /** Case-study progress: which analyses are finished, and the thesis written for each. */
   cases: 'tq.v1.cases',
   /**
+   * Placement test: when it was last taken, which units it credited, and
+   * whether the Home offer card was dismissed.
+   *
+   * Its own key rather than a corner of `settings` or `progress`, for two
+   * reasons. It is not a preference — it is the audit trail that makes
+   * `applyPlacement` idempotent, and burying an idempotence ledger inside the
+   * blob a settings toggle rewrites invites one to clobber the other. And it
+   * syncs on its own timeline: a device that only ever changed the read-aloud
+   * rate should not push a placement record with it. See @core/placement/record.
+   */
+  placement: 'tq.v1.placement',
+  /**
    * Cloud-sync bookkeeping for this profile *on this device*: what each key's
    * last local change was and what the server has accepted. Profile-scoped so
    * deleting a profile takes it along, but never itself synced — see
