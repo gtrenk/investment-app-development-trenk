@@ -125,11 +125,36 @@ button {
   animation: tq-listen-pulse 1.6s ease-out infinite;
 }
 
+/* Finishing a whole day's session is the biggest moment the app has, so it gets
+   the only confetti in it. Pure CSS — a dozen absolutely-positioned squares
+   falling on staggered delays, no canvas and no dependency. */
+@keyframes tq-confetti {
+  0% {
+    opacity: 0;
+    transform: translateY(-10vh) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(95vh) rotate(540deg);
+  }
+}
+
+.anim-confetti {
+  animation: tq-confetti 2.4s ease-in forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up,
   .anim-slide-in,
   .anim-pop,
-  .anim-listen {
+  .anim-listen,
+  .anim-confetti {
     animation: none;
+  }
+  .anim-confetti {
+    display: none;
   }
 }

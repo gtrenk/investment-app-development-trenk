@@ -30,6 +30,8 @@ export const STORAGE_KEYS = {
    * and nothing to sync. See src/core/settings.ts for the shape.
    */
   settings: 'tq.v1.settings',
+  /** Case-study progress: which analyses are finished, and the thesis written for each. */
+  cases: 'tq.v1.cases',
   /**
    * Cloud-sync bookkeeping for this profile *on this device*: what each key's
    * last local change was and what the server has accepted. Profile-scoped so

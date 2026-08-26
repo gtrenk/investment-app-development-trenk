@@ -79,17 +79,36 @@ const EMPTY: DrillHistory = { results: [] }
 
 // ─── The dataset ─────────────────────────────────────────────────────────────
 
+/**
+ * The drills are all single-period, so the twelve FY2024 snapshots are "the
+ * company set". The case studies (src/content/cases) additionally ship a few
+ * FY2023 snapshots of companies already in that set, because almost every
+ * earnings-quality signal is a trend and the snapshot shape holds one period —
+ * a trend is therefore two snapshots side by side. They are held to the same
+ * identities and the same populated-field checks below.
+ */
+const CURRENT = COMPANIES.filter((c) => c.period === 'FY2024')
+const PRIOR = COMPANIES.filter((c) => c.period !== 'FY2024')
+
 describe('companies.json', () => {
-  it('ships twelve companies with unique ids and names', () => {
-    expect(COMPANIES).toHaveLength(12)
-    expect(new Set(COMPANIES.map((c) => c.id)).size).toBe(12)
-    expect(new Set(COMPANIES.map((c) => c.company)).size).toBe(12)
+  it('ships twelve current-year companies with unique ids and names', () => {
+    expect(CURRENT).toHaveLength(12)
+    expect(new Set(COMPANIES.map((c) => c.id)).size).toBe(COMPANIES.length)
+    expect(new Set(CURRENT.map((c) => c.company)).size).toBe(12)
+  })
+
+  it('adds prior-year snapshots only for companies already in the current set', () => {
+    for (const p of PRIOR) {
+      const current = CURRENT.find((c) => c.company === p.company)
+      expect(current, `${p.id} has no FY2024 counterpart`).toBeDefined()
+      expect(p.sector).toBe(current?.sector)
+    }
   })
 
   it('covers a spread of sectors', () => {
     // Twelve distinct sectors is the whole point: ratios are only readable
     // against an industry, so the set has to contain the contrasts.
-    expect(new Set(COMPANIES.map((c) => c.sector)).size).toBe(12)
+    expect(new Set(CURRENT.map((c) => c.sector)).size).toBe(12)
   })
 
   it.each(COMPANIES.map((c) => [c.id, c] as const))(
@@ -227,9 +246,11 @@ describe('FIN_DRILLS', () => {
     expect(used.size).toBeGreaterThanOrEqual(10)
   })
 
-  it('uses every company at least once across all kinds', () => {
+  it('uses every current-year company at least once across all kinds', () => {
+    // The prior-year snapshots exist for the case studies, which are the only
+    // content that reads two periods at once; the drills are single-period.
     const used = new Set(FIN_DRILLS.flatMap((d) => d.statementIds))
-    expect(used.size).toBe(COMPANIES.length)
+    expect([...used].sort()).toEqual(CURRENT.map((c) => c.id).sort())
   })
 
   it('exposes a label for every fin drill kind', () => {

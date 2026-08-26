@@ -338,7 +338,7 @@ describe('chunkForSpeech', () => {
 
 describe('read-aloud settings', () => {
   it('is off by default — this is an opt-in feature', () => {
-    expect(defaultSettings()).toEqual({ readAloud: { enabled: false, rate: 1 } })
+    expect(defaultSettings()).toEqual({ readAloud: { enabled: false, rate: 1 }, pace: 1 })
   })
 
   it.each([undefined, null, 42, 'nonsense', {}, { readAloud: null }])(
@@ -351,6 +351,9 @@ describe('read-aloud settings', () => {
   it('keeps a stored choice', () => {
     expect(sanitizeSettings({ readAloud: { enabled: true, rate: 1.5 } })).toEqual({
       readAloud: { enabled: true, rate: 1.5 },
+      // Pace is a sibling key in the same blob; a record written before it
+      // existed still reads back at the default.
+      pace: 1,
     })
   })
 

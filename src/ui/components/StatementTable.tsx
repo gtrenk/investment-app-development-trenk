@@ -163,6 +163,19 @@ export function shortName(company: string): string {
   return company.split(/\s+/)[0]
 }
 
+/**
+ * Column headers for a two-company compare.
+ *
+ * Normally the companies differ and their names are what distinguish the
+ * columns. When the same company appears twice it is one business across two
+ * fiscal years — a case study reading a trend — and repeating the name in both
+ * headers labels nothing. The period is then the distinguishing fact.
+ */
+export function columnLabels(companies: readonly FinStatementSnapshot[]): string[] {
+  const names = companies.map((c) => shortName(c.company))
+  return new Set(names).size === companies.length ? names : companies.map((c) => c.period)
+}
+
 function Section({
   section,
   companies,
@@ -180,12 +193,12 @@ function Section({
         </h3>
         {compare && (
           <div className="ml-auto flex shrink-0 gap-2">
-            {companies.map((c, i) => (
+            {columnLabels(companies).map((label, i) => (
               <span
-                key={c.id}
+                key={companies[i].id}
                 className={`w-[74px] text-right text-[10px] font-bold uppercase tracking-wide ${ACCENTS[i] ?? 'text-slate-300'}`}
               >
-                {shortName(c.company)}
+                {label}
               </span>
             ))}
           </div>

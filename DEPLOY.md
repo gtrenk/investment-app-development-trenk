@@ -274,32 +274,66 @@ devices" for what that means in practice.
 ## 4. Swap synthetic data for real history
 
 The committed `public/data/` is **deterministic synthetic** OHLCV, because the
-sandbox this was built in cannot reach market-data hosts. On your own network:
+sandbox this was built in cannot reach market-data hosts.
+
+### The easy path: run the workflow
+
+**Actions → Refresh market data → Run workflow.** A GitHub-hosted runner has
+plain outbound internet, so it does the fetch this sandbox never could:
+
+1. `node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000` — ~10 years of
+   daily bars for all 27 symbols, one polite request at a time. A few flaky
+   tickers are tolerated (their committed bars are kept, so the universe never
+   shrinks); a truncated history is rejected outright.
+2. `node scripts/validate-data.mjs` — manifest ↔ files, OHLC invariants,
+   strictly increasing timestamps, ≥ 2 000 bars per symbol.
+3. `node scripts/curate-windows.mjs` — every drill window re-derived from the new
+   bars. **This step is not optional**: a window is an index range, so new bars
+   mean the old indices point at different days.
+4. The content test suites, then a commit to `main` — which fires the Pages
+   deploy in §0. Nothing changed? No commit, no deploy.
+
+The same workflow runs itself at 06:00 UTC on the 1st of each month
+(`.github/workflows/refresh-data.yml`, `permissions: contents: write`, pushing
+with the default `GITHUB_TOKEN` as `github-actions[bot]`). A `refresh-data`
+concurrency group stops two runs from stacking.
+
+### By hand, on a network that can reach Stooq
 
 ```bash
 node scripts/fetch-data.mjs                  # 27 symbols, ~10 years, from Stooq
 node scripts/fetch-data.mjs --symbols=AAPL,SPY --years=5
+node scripts/validate-data.mjs --expect-symbols=27
+node scripts/curate-windows.mjs --report     # rebuild data/drills/windows.json
+npm test && npm run build
 ```
 
-It rewrites `public/data/ohlcv/{SYMBOL}.json` and `public/data/manifest.json`
-(`manifest.generated` flips from `synthetic` to `stooq`). Then:
+`manifest.generated` flips from `synthetic` to `stooq`, and so does
+`source` in `public/data/drills/windows.json`. Commit the refreshed
+`public/data/` — it is part of the app, not a build artifact.
+
+Before trusting the new windows, look at some:
 
 ```bash
-npm test          # bundled-data suites re-validate every series
-npm run build
+node scripts/render-windows.mjs --n=15 --out=/tmp/shots
+node scripts/render-windows.mjs --answer=rising-wedge --out=/tmp/shots
 ```
 
-Commit the refreshed `public/data/` — it is part of the app, not a build
-artifact.
+That writes candlestick PNGs (with the fitted envelope drawn over triangles and
+wedges, where a detector is most likely to be arithmetically right and visually
+wrong). The detectors are strict, but "strict" is a claim about arithmetic.
 
-⚠ Two things change under real data that are worth knowing:
+⚠ Things worth knowing under real data:
 
-- **Pattern drills reference bar indices.** `src/content/drills/patterns.ts`
-  pins windows by `startIdx`/`endIdx` into each series. New data shifts those
-  windows, so re-check the drills (`npm test` catches out-of-range windows, not
-  a window that no longer contains the pattern).
+- **Drill windows are regenerated, not migrated.** After a refresh the drills a
+  learner has already answered are different drills with different ids; their
+  history stays valid but the 60-day exclusion no longer applies to the new ones.
+- **Class coverage changes.** On synthetic bars several pattern classes find few
+  or no honest instances and ship empty (they remain distractors). Real market
+  data should fill them in — `--report` prints the per-class yield.
 - Stooq rate-limits. "Exceeded the daily hits limit" comes back as HTTP 200 with
-  that text as the body; the script reports it per symbol. Retry tomorrow.
+  that text as the body; the script reports it per symbol and retries with
+  backoff. If a whole run is rate-limited, re-run the workflow the next day.
 
 The financial statements in `public/data/financials/companies.json` are
 **fictional by design** and are not touched by any fetch script.

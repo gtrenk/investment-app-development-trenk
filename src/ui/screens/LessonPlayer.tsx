@@ -7,9 +7,11 @@ import type { ContentBlock, QuizItem } from '@core/types'
 import { XP_LESSON, XP_QUIZ_ITEM } from '@core/gamification/xp'
 import { speakableFromMarkdown, speakableQuiz } from '@core/speech/text'
 import { getLesson, getUnit } from '@content/units'
+import { useSessionStore } from '@state/session'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { dayLogFor } from '@state/selectors'
 import { Markdown } from '@ui/components/Markdown'
+import { SessionNext } from '@ui/components/SessionNext'
 import { QuizChoice } from '@ui/components/QuizChoice'
 import type { ChoiceState } from '@ui/components/QuizChoice'
 import { isSupported, pause, resume, speak, stop, useSpeechState } from '@ui/speech/tts'
@@ -171,6 +173,7 @@ export function LessonPlayer() {
   const listening = useAppStore((s) => s.settings.readAloud.enabled)
   const rate = useAppStore((s) => s.settings.readAloud.rate)
   const setReadAloud = useAppStore((s) => s.setReadAloud)
+  const inSession = useSessionStore((s) => s.active)
   const speech = useSpeechState()
   const [ttsAvailable] = useState(isSupported)
 
@@ -420,7 +423,11 @@ export function LessonPlayer() {
                 : 'Clear your review queue to lock in today’s streak.'}
             </p>
 
-            <div className="space-y-2.5 pt-1">
+            {/* In a session the lesson is one step of several: the panel offers
+                the next step rather than the two usual ways out. */}
+            {inSession && <SessionNext />}
+
+            <div className="space-y-2.5 pt-1" hidden={inSession}>
               <Link
                 to="/review"
                 data-testid="summary-review"

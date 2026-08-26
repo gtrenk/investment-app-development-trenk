@@ -1,7 +1,7 @@
 // ─── App shell & routing ─────────────────────────────────────────────────────
 
 import { useEffect } from 'react'
-import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { useProfilesStore } from '@state/profiles'
 import { initProfileSync } from '@state/sync'
@@ -10,14 +10,18 @@ import { ProfilePicker } from './screens/ProfilePicker'
 import { TabBar } from './components/TabBar'
 import { CelebrationOverlay } from './components/CelebrationOverlay'
 import { HomeScreen } from './screens/HomeScreen'
+import { SessionScreen } from './screens/SessionScreen'
 import { LearnScreen } from './screens/LearnScreen'
 import { LessonPlayer } from './screens/LessonPlayer'
 import { ReviewScreen } from './screens/ReviewScreen'
 import { DrillsScreen } from './screens/DrillsScreen'
 import { DrillPlayer } from './screens/DrillPlayer'
 import { DrillStatsScreen } from './screens/DrillStatsScreen'
+import { CASE_ROUTES } from './screens/caseRoutes'
 import { PortfolioScreen } from './screens/PortfolioScreen'
 import { TradeScreen } from './screens/TradeScreen'
+import { SessionRail } from './components/SessionRail'
+import { SessionGuard } from './session/useSessionFlow'
 import { PortfolioSync } from './data/usePortfolio'
 import { LimitOrderSync } from './data/useOrders'
 import { stop as stopSpeech } from './speech/tts'
@@ -33,6 +37,23 @@ import { stop as stopSpeech } from './speech/tts'
 function StopSpeechOnNavigate() {
   const { pathname } = useLocation()
   useEffect(() => stopSpeech, [pathname])
+  return null
+}
+
+/**
+ * Every route change starts at the top of the page.
+ *
+ * The browser keeps the scroll offset when only the React tree changes, which
+ * was survivable while screens were entered from a list — but a Smart Session
+ * hands one full-height screen straight to the next, and arriving at a lesson
+ * already scrolled past its own header (and past the session rail) is simply
+ * wrong. Cheap, global, and it fixes the same annoyance on the tab bar.
+ */
+function ScrollToTopOnNavigate() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
   return null
 }
 
@@ -52,10 +73,13 @@ function Splash() {
 /** Layout for the five tabbed screens. */
 function TabLayout() {
   const srs = useAppStore((s) => s.srs)
-  const dueCount = todayQueue(srs, appClock.today()).length
+  const pace = useAppStore((s) => s.settings.pace)
+  const dueCount = todayQueue(srs, appClock.today(), pace).length
   return (
     <>
       <main className="momentum pad-for-tabbar safe-x mx-auto min-h-dvh w-full max-w-md">
+        {/* Renders only while a Smart Session is live; see SessionRail. */}
+        <SessionRail />
         <Outlet />
       </main>
       <TabBar dueCount={dueCount} />
@@ -67,9 +91,24 @@ function TabLayout() {
 function FocusLayout() {
   return (
     <main className="momentum safe-x mx-auto min-h-dvh w-full max-w-md">
+      <SessionRail />
       <Outlet />
     </main>
   )
+}
+
+/**
+ * The lesson player, keyed on the lesson.
+ *
+ * React Router keeps one element mounted across a change of `:id`, which was
+ * harmless while lessons were only ever entered from a list — but a Smart
+ * Session goes lesson → lesson directly, and a player that keeps its `step`
+ * (and its "already settled" flag) would show the second lesson's completion
+ * panel the instant it arrived, without ever playing or recording it.
+ */
+function LessonRoute() {
+  const { id = '' } = useParams()
+  return <LessonPlayer key={id} />
 }
 
 function NotFound() {
@@ -131,6 +170,8 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
       <StopSpeechOnNavigate />
+      <ScrollToTopOnNavigate />
+      <SessionGuard />
       <Routes>
         <Route path="/profiles" element={<ProfilePicker />} />
         <Route element={<TabLayout />}>
@@ -141,10 +182,12 @@ export default function App() {
           <Route path="/portfolio" element={<PortfolioScreen />} />
         </Route>
         <Route element={<FocusLayout />}>
-          <Route path="/lesson/:id" element={<LessonPlayer />} />
+          <Route path="/session" element={<SessionScreen />} />
+          <Route path="/lesson/:id" element={<LessonRoute />} />
           <Route path="/drill" element={<DrillPlayer />} />
           <Route path="/drill-stats" element={<DrillStatsScreen />} />
           <Route path="/trade" element={<TradeScreen />} />
+          {CASE_ROUTES.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

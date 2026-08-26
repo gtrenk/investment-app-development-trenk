@@ -21,7 +21,7 @@ import type {
   Transaction,
 } from '@core/types'
 import { newCardState, applyGrade } from '@core/srs/sm2'
-import { buildQueue } from '@core/srs/scheduler'
+import { buildQueue, queueOptsForPace } from '@core/srs/scheduler'
 import {
   XP_DRILL,
   XP_DRILL_CORRECT_BONUS,
@@ -53,14 +53,15 @@ import {
   newLimitOrder,
 } from '@core/portfolio/limitOrders'
 import type { LimitOrder, SeriesMap } from '@core/portfolio/limitOrders'
-import { isGoalMet, newStreakState, recordGoalMet } from '@core/gamification/streak'
+import { isGoalMet, lessonGoalFor, newStreakState, recordGoalMet } from '@core/gamification/streak'
 import { evaluateBadges } from '@core/gamification/badges'
 import { STORAGE_KEYS, createMemoryStorage } from '@core/storage/adapter'
 import type { StorageAdapter } from '@core/storage/adapter'
 import { defaultSettings, sanitizeSettings } from '@core/settings'
-import type { ReadAloudSettings, Settings } from '@core/settings'
+import type { Pace, ReadAloudSettings, Settings } from '@core/settings'
 import { activeProfileStorage } from './profiles'
-import { ALL_UNITS, getLesson } from '@content/units'
+import { emptyDay } from './selectors'
+import { ALL_LESSONS, ALL_UNITS, getLesson } from '@content/units'
 
 // The clock (and its Playwright override) lives in its own module so the
 // profile boot path can share it without importing the store. Re-exported
@@ -94,13 +95,13 @@ export function emptyGame(): GameState {
   return { xp: 0, streak: newStreakState(), badges: [], dailyLog: {} }
 }
 
-export function emptyDay(): DayLog {
-  return { reviews: 0, lessons: 0, drills: 0, xp: 0, goalMet: false }
-}
-
 export function emptyDrills(): DrillHistory {
   return { results: [] }
 }
+
+// Re-exported from its new home in ./selectors, which every screen already
+// imports and which — unlike this module — is safe to load outside a browser.
+export { emptyDay }
 
 function dayOf(game: GameState, date: string): DayLog {
   return game.dailyLog[date] ?? emptyDay()
@@ -171,6 +172,10 @@ function awardXp(game: GameState, amount: number, today: string, out: Celebratio
 /**
  * After any XP-earning action: check whether today's goal has just been met
  * (first time only) and evaluate the badge set. Both are idempotent.
+ *
+ * `pace` is threaded in rather than read from the store so this stays a pure
+ * function of what the caller has already got in hand — and so the one place
+ * that decides "is the day done?" is the one place pace has to be applied.
  */
 function settle(
   progress: ProgressState,
@@ -180,14 +185,16 @@ function settle(
   game: GameState,
   today: string,
   out: Celebration[],
+  pace: Pace,
 ): GameState {
   let next = game
   const day = dayOf(next, today)
 
   if (!day.goalMet) {
-    const queue = buildQueue(srs, today)
+    const queue = buildQueue(srs, today, queueOptsForPace(pace))
     const dueCount = queue.due.length + queue.newCards.length
-    if (isGoalMet(day, dueCount)) {
+    const remaining = Math.max(0, ALL_LESSONS.length - Object.keys(progress.completedLessons).length)
+    if (isGoalMet(day, dueCount, lessonGoalFor(pace, remaining))) {
       const streak = recordGoalMet(next.streak, today)
       next = {
         ...next,
@@ -291,6 +298,8 @@ export interface AppState {
   gradeCard: (cardId: CardId, grade: Grade) => void
   finishReviewSession: (cardCount: number) => void
   recordDrillResult: (result: DrillResult) => void
+  /** Award XP earned outside the store (case studies) and run the usual goal/badge settle. */
+  awardCaseXp: (amount: number) => void
   placeTrade: (req: TradeRequest) => TradeOutcome
   placeLimitOrder: (req: LimitOrderRequest) => LimitOrderOutcome
   cancelLimitOrder: (id: string) => void
@@ -302,6 +311,8 @@ export interface AppState {
   dismissCelebration: () => void
   /** Patch the read-aloud preference and save it. Off is the default. */
   setReadAloud: (patch: Partial<ReadAloudSettings>) => void
+  /** Set how many lessons a day the goal asks for. 1 is the default. */
+  setPace: (pace: Pace) => void
   resetAll: () => Promise<void>
 }
 
@@ -445,7 +456,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       dailyLog: { ...state.game.dailyLog, [today]: { ...day, lessons: day.lessons + 1 } },
     }
     game = awardXp(game, XP_LESSON, today, out)
-    game = settle(progress, srs, state.drillHistory, state.portfolio, game, today, out)
+    game = settle(progress, srs, state.drillHistory, state.portfolio, game, today, out, state.settings.pace)
 
     const next = { progress, srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
@@ -464,7 +475,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       firstTryCorrect: [...state.progress.firstTryCorrect, itemId],
     }
     let game = awardXp(state.game, XP_QUIZ_ITEM, today, out)
-    game = settle(progress, state.srs, state.drillHistory, state.portfolio, game, today, out)
+    game = settle(progress, state.srs, state.drillHistory, state.portfolio, game, today, out, state.settings.pace)
 
     const next = { progress, srs: state.srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
@@ -500,7 +511,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       today,
       out,
     )
-    game = settle(state.progress, state.srs, state.drillHistory, state.portfolio, game, today, out)
+    game = settle(
+      state.progress,
+      state.srs,
+      state.drillHistory,
+      state.portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
 
     const next = { progress: state.progress, srs: state.srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
@@ -517,6 +537,26 @@ export const useAppStore = create<AppState>((set, get) => ({
    * (which can be −5 for a confident miss) lives in the history, but XP is a
    * lifetime counter that must never go backwards.
    */
+  awardCaseXp(amount) {
+    if (!Number.isFinite(amount) || amount <= 0) return
+    const state = get()
+    const today = appClock.today()
+    const out: Celebration[] = []
+    let game = awardXp(state.game, Math.round(amount), today, out)
+    game = settle(
+      state.progress,
+      state.srs,
+      state.drillHistory,
+      state.portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
+    set({ game, pendingCelebrations: [...state.pendingCelebrations, ...out] })
+    persist({ progress: state.progress, srs: state.srs, game, drillHistory: state.drillHistory })
+  },
+
   recordDrillResult(result) {
     const state = get()
     const already = state.drillHistory.results.some(
@@ -534,7 +574,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       dailyLog: { ...state.game.dailyLog, [today]: { ...day, drills: day.drills + 1 } },
     }
     game = awardXp(game, XP_DRILL + (result.correct ? XP_DRILL_CORRECT_BONUS : 0), today, out)
-    game = settle(state.progress, state.srs, drillHistory, state.portfolio, game, today, out)
+    game = settle(
+      state.progress,
+      state.srs,
+      drillHistory,
+      state.portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
 
     const next = { progress: state.progress, srs: state.srs, game, drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
@@ -576,7 +625,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     const out: Celebration[] = []
     const xp = note && !req.automated ? XP_JOURNAL_NOTE : 0
     let game = awardXp(state.game, xp, today, out)
-    game = settle(state.progress, state.srs, state.drillHistory, portfolio, game, today, out)
+    game = settle(
+      state.progress,
+      state.srs,
+      state.drillHistory,
+      portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
 
     set({
       game,
@@ -758,6 +816,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...get().settings,
       readAloud: { ...get().settings.readAloud, ...patch },
     }
+    set({ settings })
+    write(STORAGE_KEYS.settings, settings)
+  },
+
+  /**
+   * Change the daily pace. Nothing is recomputed here on purpose: the goal, the
+   * SRS caps and the session plan are all *derived* from this value the next
+   * time they are read, so raising the pace mid-day simply asks more of today
+   * and lowering it asks less. A day already banked stays banked.
+   */
+  setPace(pace) {
+    const settings: Settings = { ...get().settings, pace }
     set({ settings })
     write(STORAGE_KEYS.settings, settings)
   },

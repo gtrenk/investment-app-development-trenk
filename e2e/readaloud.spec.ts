@@ -192,6 +192,8 @@ test.describe('read aloud', () => {
     // It lands in this profile's own namespace, as bytes on disk…
     await expect.poll(() => persistedSettings(page)).toEqual({
       readAloud: { enabled: true, rate: 1.2 },
+      // Daily pace shares the settings blob; untouched here, so still 1.
+      pace: 1,
     })
 
     // …so a cold start reads it back.

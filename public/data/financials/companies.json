@@ -454,5 +454,119 @@
       "fcf": 770,
       "sbc": 410
     }
+  },
+  {
+    "id": "harborline-grocers-fy2023",
+    "company": "Harborline Grocers",
+    "sector": "Grocery",
+    "period": "FY2023",
+    "incomeStatement": {
+      "revenue": 27000,
+      "cogs": 20250,
+      "grossProfit": 6750,
+      "opex": 5940,
+      "operatingIncome": 810,
+      "interestExpense": 150,
+      "pretaxIncome": 660,
+      "taxes": 158,
+      "netIncome": 502,
+      "shares": 274,
+      "eps": 1.83
+    },
+    "balanceSheet": {
+      "cash": 420,
+      "receivables": 300,
+      "inventory": 2020,
+      "currentAssets": 2900,
+      "ppe": 6150,
+      "goodwill": 550,
+      "totalAssets": 9600,
+      "currentLiabilities": 3400,
+      "longTermDebt": 3050,
+      "totalLiabilities": 6450,
+      "equity": 3150
+    },
+    "cashFlow": {
+      "cfo": 1105,
+      "capex": 660,
+      "fcf": 445,
+      "sbc": 40
+    }
+  },
+  {
+    "id": "cobalt-cloud-fy2023",
+    "company": "Cobalt Cloud",
+    "sector": "SaaS",
+    "period": "FY2023",
+    "incomeStatement": {
+      "revenue": 1350,
+      "cogs": 351,
+      "grossProfit": 999,
+      "opex": 1155,
+      "operatingIncome": -156,
+      "interestExpense": 10,
+      "pretaxIncome": -166,
+      "taxes": 6,
+      "netIncome": -172,
+      "shares": 232,
+      "eps": -0.74
+    },
+    "balanceSheet": {
+      "cash": 1180,
+      "receivables": 275,
+      "inventory": 0,
+      "currentAssets": 1520,
+      "ppe": 175,
+      "goodwill": 640,
+      "totalAssets": 2335,
+      "currentLiabilities": 720,
+      "longTermDebt": 300,
+      "totalLiabilities": 1020,
+      "equity": 1315
+    },
+    "cashFlow": {
+      "cfo": 60,
+      "capex": 45,
+      "fcf": 15,
+      "sbc": 297
+    }
+  },
+  {
+    "id": "brightway-retail-fy2023",
+    "company": "Brightway Retail",
+    "sector": "Retail",
+    "period": "FY2023",
+    "incomeStatement": {
+      "revenue": 5900,
+      "cogs": 3658,
+      "grossProfit": 2242,
+      "opex": 1534,
+      "operatingIncome": 708,
+      "interestExpense": 468,
+      "pretaxIncome": 240,
+      "taxes": 48,
+      "netIncome": 192,
+      "shares": 79,
+      "eps": 2.43
+    },
+    "balanceSheet": {
+      "cash": 180,
+      "receivables": 150,
+      "inventory": 1420,
+      "currentAssets": 1790,
+      "ppe": 1290,
+      "goodwill": 2350,
+      "totalAssets": 5430,
+      "currentLiabilities": 1330,
+      "longTermDebt": 3200,
+      "totalLiabilities": 4530,
+      "equity": 900
+    },
+    "cashFlow": {
+      "cfo": 214,
+      "capex": 165,
+      "fcf": 49,
+      "sbc": 16
+    }
   }
 ]

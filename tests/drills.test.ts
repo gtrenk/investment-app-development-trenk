@@ -333,6 +333,14 @@ describe('calibrationStats', () => {
 // Vitest runs in node, so the tests can read the committed dataset straight off
 // disk. This is the guard that stops a drill definition from silently pointing
 // at a bar that does not exist.
+//
+// Scope note: `PATTERN_DRILLS` / `WHATNEXT_DRILLS` are now the **fallback**
+// catalogue the loader uses when `data/drills/windows.json` cannot be fetched,
+// so this file guards the fallback. The shipped windows — the ones a learner
+// actually plays — are guarded by `tests/windows.test.ts`, which reads
+// `windows.json`, checks the same invariants more strictly, and re-runs
+// `scripts/curate-windows.mjs` to prove the file is reproducible. Both sets
+// index into the same committed data, so both have to be in bounds.
 
 interface Manifest {
   generated: string
@@ -385,7 +393,7 @@ describe('bundled dataset', () => {
   })
 })
 
-describe('pattern drill definitions', () => {
+describe('pattern drill fallback definitions', () => {
   it('ships a usable number of drills', () => {
     expect(PATTERN_DRILLS.length).toBeGreaterThanOrEqual(35)
   })
@@ -424,7 +432,7 @@ describe('pattern drill definitions', () => {
   })
 })
 
-describe('what-next drill definitions', () => {
+describe('what-next drill fallback definitions', () => {
   it('ships a usable number of drills with unique ids', () => {
     expect(WHATNEXT_DRILLS.length).toBeGreaterThanOrEqual(25)
     expect(new Set(WHATNEXT_DRILLS.map((d) => d.id)).size).toBe(WHATNEXT_DRILLS.length)
@@ -473,7 +481,7 @@ describe('what-next drill definitions', () => {
   })
 })
 
-describe('engine over the real content', () => {
+describe('engine over the fallback content', () => {
   it('always produces a drill for any day of the next two years', () => {
     let day = '2026-08-25'
     for (let i = 0; i < 730; i++) {

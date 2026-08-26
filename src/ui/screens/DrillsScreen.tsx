@@ -12,7 +12,6 @@ import {
   pickDailyDrill,
 } from '@core/drills/engine'
 import { XP_DRILL, XP_DRILL_CORRECT_BONUS } from '@core/gamification/xp'
-import { PATTERN_DRILLS, WHATNEXT_DRILLS } from '@content/drills/patterns'
 import { FIN_DRILLS, FIN_DRILL_KIND_LABELS } from '@content/drills/financials'
 import { useAppStore, appClock } from '@state/useAppStore'
 import {
@@ -21,6 +20,7 @@ import {
   drillResultsOn,
   drillTotalsByKind,
 } from '@state/selectors'
+import { useDrillWindows } from '@ui/data/loadWindows'
 import { KIND_COPY } from '@ui/drills/labels'
 
 /** Calibration is noise below this many confidence-bearing answers. */
@@ -39,9 +39,17 @@ export function DrillsScreen() {
   const drillHistory = useAppStore((s) => s.drillHistory)
   const today = appClock.today()
 
+  // Windows arrive with the market data rather than the bundle, so the card
+  // waits on them. The loader never rejects (it falls back to the bundled
+  // constants), so this resolves within a tick even offline.
+  const { windows, loading: windowsLoading } = useDrillWindows()
+
   const daily = useMemo(
-    () => pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today, undefined, FIN_DRILLS),
-    [drillHistory, today],
+    () =>
+      windows
+        ? pickDailyDrill(windows.patterns, windows.whatnext, drillHistory, today, undefined, FIN_DRILLS)
+        : null,
+    [windows, drillHistory, today],
   )
 
   const done = answeredToday(drillHistory, today)
@@ -141,6 +149,13 @@ export function DrillsScreen() {
             <span aria-hidden>→</span>
           </Link>
         </section>
+      ) : windowsLoading ? (
+        <section
+          data-testid="drill-loading"
+          className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-8 text-center text-sm text-slate-500"
+        >
+          Loading today’s drill…
+        </section>
       ) : (
         <section className="rounded-2xl border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
           No drills are authored yet.
@@ -213,6 +228,21 @@ export function DrillsScreen() {
           </p>
         )}
       </section>
+
+      <Link
+        to="/cases"
+        className="block rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-4 active:scale-[0.99]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-100">📁 Case studies</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+              Guided company analyses — statements to verdict. Apply everything the drills train.
+            </p>
+          </div>
+          <span aria-hidden className="text-slate-500">→</span>
+        </div>
+      </Link>
     </div>
   )
 }

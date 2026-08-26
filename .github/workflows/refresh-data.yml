@@ -1,0 +1,81 @@
+name: Refresh market data
+
+# Pulls real daily bars from Stooq, re-curates the drill windows against them,
+# validates the result and commits to main. The Pages workflow triggers on that
+# push, so a successful run ends with the refreshed data live.
+#
+# Why this lives in Actions rather than in the repo owner's terminal: the
+# sandbox this project was built in cannot reach stooq.com, and a monthly manual
+# chore is a chore nobody does. A GitHub-hosted runner has plain outbound
+# internet, so the fetch that has never run locally runs here.
+
+on:
+  workflow_dispatch:
+  # 06:00 UTC on the 1st of each month — after the previous month has closed.
+  schedule:
+    - cron: '0 6 1 * *'
+
+# One refresh at a time. A queued manual run waits for the cron run rather than
+# racing it to a push; never cancel in flight, because a half-finished fetch
+# would leave the working tree inconsistent.
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # ~27 symbols with a polite delay between them: roughly a minute of
+      # wall clock. --max-failures=3 tolerates a few flaky tickers (the
+      # previously committed bars are kept for those, so the universe never
+      # shrinks); --min-bars=2000 rejects a truncated history rather than
+      # letting it invalidate every drill window curated against it.
+      - name: Fetch real bars from Stooq
+        run: node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000
+
+      # Gate the dataset before anything is derived from it.
+      - name: Validate the dataset
+        run: node scripts/validate-data.mjs --min-bars=2000 --expect-symbols=27
+
+      # Re-derive every drill window from the new bars. The old indices point at
+      # different days now, so this is not optional.
+      - name: Re-curate drill windows
+        run: node scripts/curate-windows.mjs --report
+
+      # Targeted and fast: the suites that actually read public/data. The full
+      # suite runs on the Pages deploy that this push triggers.
+      - name: Test the refreshed content
+        run: npx vitest run tests/windows.test.ts tests/bundled.test.ts tests/drills.test.ts tests/finDrills.test.ts
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/data
+          # A month with no new bars (or an identical re-curation) must produce
+          # no commit at all — an empty commit every month would republish the
+          # site and reshuffle nothing.
+          if git diff --cached --quiet; then
+            echo 'No data changes — nothing to commit.'
+            exit 0
+          fi
+          git commit -m 'Refresh market data from Stooq and re-curate drill windows'
+          git push origin HEAD:main

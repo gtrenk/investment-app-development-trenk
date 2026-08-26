@@ -5,6 +5,7 @@
 //   node scripts/fetch-data.mjs --symbols=AAPL,SPY
 //   node scripts/fetch-data.mjs --years=5
 //   node scripts/fetch-data.mjs --out=public/data
+//   node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000   # CI guardrails
 //
 // ⚠ RUN THIS ON A NETWORK WITH ACCESS TO stooq.com.
 //   The CI/agent sandbox this repo was built in has an egress proxy that
@@ -38,7 +39,7 @@
 //
 // No dependencies beyond node builtins (uses global fetch — needs Node 18+).
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -208,7 +209,20 @@ async function fetchCsv(symbol) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const opts = { symbols: DEFAULT_SYMBOLS, years: 10, out: join(ROOT, 'public', 'data') }
+  const opts = {
+    symbols: DEFAULT_SYMBOLS,
+    years: 10,
+    out: join(ROOT, 'public', 'data'),
+    // Unattended refreshes need a failure budget: one delisted-for-a-day ticker
+    // must not abandon a good fetch of the other twenty-six, but a rate limit
+    // that takes out half the universe has to fail the run.
+    maxFailures: 0,
+    // A series that comes back shorter than this is treated as a bad fetch and
+    // the previously committed file is kept instead. Stooq occasionally serves
+    // a truncated history; silently shipping it would invalidate every drill
+    // window curated against the longer one.
+    minBars: 0,
+  }
   for (const arg of argv) {
     const m = /^--([\w-]+)=(.*)$/.exec(arg)
     if (!m) continue
@@ -216,12 +230,34 @@ function parseArgs(argv) {
     if (key === 'symbols') opts.symbols = val.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
     else if (key === 'years') opts.years = Number(val)
     else if (key === 'out') opts.out = resolve(process.cwd(), val)
+    else if (key === 'max-failures') opts.maxFailures = Number(val)
+    else if (key === 'min-bars') opts.minBars = Number(val)
   }
   return opts
 }
 
+/**
+ * Manifest entry for a symbol whose fetch failed, taken from the file already
+ * on disk. Returns null when there is nothing to fall back to, in which case
+ * the symbol drops out of the dataset entirely and the caller must fail.
+ */
+function keepExisting(ohlcvDir, symbol) {
+  try {
+    const existing = JSON.parse(readFileSync(join(ohlcvDir, `${symbol}.json`), 'utf8'))
+    if (!Array.isArray(existing.t) || existing.t.length === 0) return null
+    return {
+      symbol,
+      bars: existing.t.length,
+      firstDate: isoDay(existing.t[0]),
+      lastDate: isoDay(existing.t[existing.t.length - 1]),
+    }
+  } catch {
+    return null
+  }
+}
+
 async function main() {
-  const { symbols, years, out } = parseArgs(process.argv.slice(2))
+  const { symbols, years, out, maxFailures, minBars } = parseArgs(process.argv.slice(2))
   const ohlcvDir = join(out, 'ohlcv')
   mkdirSync(ohlcvDir, { recursive: true })
 
@@ -229,12 +265,16 @@ async function main() {
 
   const manifestSymbols = []
   const failed = []
+  const dropped = []
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i]
     try {
       const full = await fetchCsv(symbol)
       const series = trimToYears(full, years)
+      if (minBars > 0 && series.t.length < minBars) {
+        throw new Error(`${symbol}: only ${series.t.length} bars, expected at least ${minBars}`)
+      }
       writeFileSync(join(ohlcvDir, `${symbol}.json`), JSON.stringify(series))
       manifestSymbols.push({
         symbol,
@@ -248,6 +288,16 @@ async function main() {
       // Most messages already start with "SYMBOL: " — do not say it twice.
       const detail = err.message.startsWith(`${symbol}: `) ? err.message.slice(symbol.length + 2) : err.message
       console.error(`  ✗ ${symbol}: ${detail}`)
+      // Carry the committed file forward so a partial fetch never shrinks the
+      // universe: the drill windows are curated over every symbol in the
+      // manifest, and a symbol vanishing would quietly delete its drills.
+      const kept = keepExisting(ohlcvDir, symbol)
+      if (kept) {
+        manifestSymbols.push(kept)
+        console.error(`    → kept the committed ${kept.bars} bars for ${symbol}`)
+      } else {
+        dropped.push(symbol)
+      }
     }
     // Polite pause between symbols (skip after the last one).
     if (i < symbols.length - 1) await sleep(DELAY_MS)
@@ -259,6 +309,10 @@ async function main() {
     return
   }
 
+  // Keep the manifest in the caller's symbol order, not fetch order, so a run
+  // that fell back for one symbol still produces the same file as a clean one.
+  manifestSymbols.sort((a, b) => symbols.indexOf(a.symbol) - symbols.indexOf(b.symbol))
+
   writeFileSync(
     join(out, 'manifest.json'),
     JSON.stringify({ generated: 'stooq', symbols: manifestSymbols }, null, 2),
@@ -267,7 +321,15 @@ async function main() {
   console.log(`\nWrote ${manifestSymbols.length} series to ${ohlcvDir}`)
   if (failed.length) {
     console.error(`Failed: ${failed.join(', ')} — re-run for just those with --symbols=`)
-    process.exitCode = 1
+    if (dropped.length > 0) {
+      console.error(`No committed data to fall back to for: ${dropped.join(', ')} — the dataset is now incomplete.`)
+      process.exitCode = 1
+    } else if (failed.length > maxFailures) {
+      console.error(`${failed.length} failure(s) exceeds the budget of ${maxFailures}.`)
+      process.exitCode = 1
+    } else {
+      console.error(`Within the failure budget of ${maxFailures}; previous data kept for those symbols.`)
+    }
   }
 }
 

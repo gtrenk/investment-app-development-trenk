@@ -1,41 +1,48 @@
-// ─── Chart-pattern & what-next drill definitions ─────────────────────────────
+// ─── Chart-pattern & what-next drills: labels + offline fallback ─────────────
 //
-// Every window below is an index range into the bundled series in
-// `public/data/ohlcv/{SYMBOL}.json` (2 520 daily bars per symbol, indices
-// 0…2519). Ranges are inclusive on both ends.
+// The *shipped* drill windows live in `public/data/drills/windows.json`, written
+// by `scripts/curate-windows.mjs` and loaded at runtime by
+// `src/ui/data/loadWindows.ts`. They have to travel with the market data: a
+// window is an index range into `public/data/ohlcv/{SYMBOL}.json`, so the day
+// the refresh workflow replaces those bars with real Stooq history, every index
+// compiled into the bundle would point at a different day.
 //
-// HOW THESE WERE CHOSEN
-// ---------------------
-// The bundled dataset is currently synthetic (see `scripts/generate-data.mjs`),
-// so the windows could not be lifted from a textbook. Instead every candidate
-// was found by a programmatic scan of all 27 symbols — regression slope and R²
-// for trends, range width and touch counts for consolidations, fractal pivot
-// analysis for double tops/bottoms and head-and-shoulders, envelope trendlines
-// with containment + oscillation tests for triangles and wedges, pole/flag
-// geometry for flags — and then every surviving window was rendered as a
-// candlestick chart and inspected by eye. Only windows that survived both
-// passes are here.
+// WHAT IS STILL IN THIS FILE
+// --------------------------
+//  • `PATTERN_LABELS` — display names, which are UI copy and belong in the
+//    bundle, not in the data file.
+//  • `PATTERN_DRILLS` / `WHATNEXT_DRILLS` — the 41 + 30 hand-verified windows
+//    that shipped before the curator existed, kept as the **fallback** the
+//    loader falls back to when `windows.json` cannot be fetched or fails to
+//    parse. They are curated against the synthetic dataset that is committed
+//    alongside them, so the fallback is always internally consistent with the
+//    bundled data; if a future refresh replaces the bars, this constant and the
+//    data it indexes into are refreshed by the same commit.
 //
-// WHAT IS DELIBERATELY MISSING
-// ----------------------------
-// Six labels in `PatternId` have **no** drill window:
-//   ascending-triangle · descending-triangle · symmetrical-triangle
-//   rising-wedge · falling-wedge · bear-flag
-// The detector did surface candidates for all of them, but under inspection
-// none was a shape a learner could name with any confidence — the "triangles"
-// were choppy ranges and the "wedges" were plain trends whose pivot lines
-// happened to converge. Labelling those windows would teach pattern-matching
-// on noise, which is the opposite of the point. They remain in the `PatternId`
-// union and are used as *distractors* (a learner still has to know what a
-// rising wedge is in order to rule it out), and windows for them should be
-// added once `scripts/fetch-data.mjs` has replaced the synthetic bars with
-// real ones.
+// HOW THE WINDOWS BELOW WERE CHOSEN
+// ---------------------------------
+// Every candidate was found by a programmatic scan of all 27 symbols —
+// regression slope and R² for trends, range width and touch counts for
+// consolidations, fractal pivot analysis for double tops/bottoms and
+// head-and-shoulders, envelope trendlines with containment + oscillation tests
+// for triangles and wedges, pole/flag geometry for flags — and then every
+// surviving window was rendered as a candlestick chart and inspected by eye.
+// `scripts/curate-windows.mjs` is that process, automated and made repeatable.
+//
+// Six labels in `PatternId` have no window in *this* list —
+// ascending-triangle · descending-triangle · symmetrical-triangle ·
+// rising-wedge · falling-wedge · bear-flag — because the hand pass rejected
+// every candidate for them as noise. The curator's stricter envelope tests
+// (containment, three pivot touches per line, alternation, and a real
+// contraction of the price range) do find a handful in `windows.json`; any
+// class that still finds none ships empty and survives as a distractor, since
+// ruling a rising wedge out requires knowing what one is.
 //
 // Distractors are chosen to be wrong but not absurd: a plausible-looking
 // alternative from the same family, so the choice turns on the defining
 // feature rather than on eliminating nonsense.
 
-import type { PatternDrillDef, PatternId, WhatNextDrillDef } from '@core/types'
+import type { DrillWindows, PatternDrillDef, PatternId, WhatNextDrillDef } from '@core/types'
 
 /** Display names for the answer buttons and the reveal card. */
 export const PATTERN_LABELS: Record<PatternId, string> = {
@@ -542,3 +549,18 @@ export const WHATNEXT_DRILLS: WhatNextDrillDef[] = [
   { id: 'wn-bac-2244', symbol: 'BAC', cutoffIdx: 2244, horizon: 10 },
   { id: 'wn-nflx-2351', symbol: 'NFLX', cutoffIdx: 2351, horizon: 10 },
 ]
+
+/**
+ * The fallback catalogue in the shape the loader hands to the engine.
+ *
+ * `generatedAt` is the last bar of the dataset these windows were curated
+ * against — the same rule `scripts/curate-windows.mjs` follows, so a fallback
+ * and a fetched document are directly comparable and neither reads a clock.
+ */
+export const FALLBACK_WINDOWS: DrillWindows = {
+  version: 1,
+  source: 'synthetic',
+  generatedAt: '2026-08-21T00:00:00.000Z',
+  patterns: PATTERN_DRILLS,
+  whatnext: WHATNEXT_DRILLS,
+}

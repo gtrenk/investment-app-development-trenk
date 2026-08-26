@@ -3,9 +3,33 @@
 // screen consumes: cards that have come due, and brand-new cards to introduce.
 
 import type { CardId, CardState } from '@core/types'
+import type { Pace } from '@core/settings'
 
 export const DEFAULT_DUE_CAP = 30
 export const DEFAULT_NEW_CAP = 5
+
+/**
+ * Review ceiling per pace.
+ *
+ * At pace 3 the learner mints three lessons' worth of cards a day instead of
+ * one, and SM-2 brings each of those back three or four times in its first
+ * fortnight — so the steady-state due load grows with pace too. Leaving the cap
+ * at 30 would quietly strand the overflow: the queue would never reach zero,
+ * and "clear your review queue" would become an unreachable daily goal.
+ *
+ * It does not scale linearly, though. 90 cards is a chore, not a session, and
+ * REVIEW_GOAL_CAP already lets 20 reviews satisfy the goal on a heavy day. 40
+ * and 50 keep a hard day finite while still letting the backlog drain.
+ */
+export const DUE_CAP_BY_PACE: Record<Pace, number> = { 1: 30, 2: 40, 3: 50 }
+
+/**
+ * The caps today's queue should be built with at this pace. New cards scale
+ * straight off pace (one lesson's worth each), reviews rise more gently.
+ */
+export function queueOptsForPace(pace: Pace): Required<QueueOpts> {
+  return { dueCap: DUE_CAP_BY_PACE[pace] ?? DEFAULT_DUE_CAP, newCap: DEFAULT_NEW_CAP * pace }
+}
 
 export interface QueueOpts {
   /** Max already-seen cards to review today (default 30). */

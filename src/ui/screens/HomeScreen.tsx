@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { REVIEW_GOAL_CAP } from '@core/gamification/streak'
 import { badgeById } from '@core/gamification/badges'
 import { answeredToday, drillKindForDay } from '@core/drills/engine'
+import { buildSessionPlan, sessionEstimateMinutes, stepLabel } from '@state/session'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { activeProfile, useProfilesStore } from '@state/profiles'
 import { useSyncStore } from '@state/sync'
@@ -11,6 +12,7 @@ import {
   TOTAL_LESSONS,
   dayLogFor,
   drillResultsOn,
+  lessonGoalToday,
   lessonsCompletedCount,
   nextLesson,
   todayQueue,
@@ -132,11 +134,13 @@ export function HomeScreen() {
   const game = useAppStore((s) => s.game)
   const drillHistory = useAppStore((s) => s.drillHistory)
 
+  const pace = useAppStore((s) => s.settings.pace)
+
   const today = appClock.today()
   const drillDone = answeredToday(drillHistory, today)
   const todayDrill = drillResultsOn(drillHistory, today)[0]
   const day = dayLogFor({ game }, today)
-  const queue = todayQueue(srs, today)
+  const queue = todayQueue(srs, today, pace)
   const dueNow = queue.length
   const reviewedToday = day.reviews
   const reviewTarget = Math.min(REVIEW_GOAL_CAP, reviewedToday + dueNow)
@@ -144,6 +148,11 @@ export function HomeScreen() {
 
   const next = nextLesson(progress)
   const lessonsDone = lessonsCompletedCount(progress)
+  const lessonGoal = lessonGoalToday(progress, pace)
+
+  // The whole day in one object, and the CTA's promise on top of it.
+  const plan = buildSessionPlan({ today, progress, srs, game, drillHistory, pace })
+  const minutes = sessionEstimateMinutes(plan)
   const recentBadges = [...game.badges].slice(-4).reverse()
 
   const me = useProfilesStore((s) => activeProfile(s.meta))
@@ -195,10 +204,10 @@ export function HomeScreen() {
             }
           />
           <TaskRow
-            done={day.lessons > 0}
-            label="Complete a lesson"
+            done={day.lessons >= lessonGoal}
+            label={lessonGoal > 1 ? `Lessons ${day.lessons}/${lessonGoal}` : 'Complete a lesson'}
             detail={
-              day.lessons > 0
+              day.lessons >= lessonGoal
                 ? `${day.lessons} done today`
                 : next
                   ? `Up next: ${next.title}`
@@ -233,11 +242,37 @@ export function HomeScreen() {
       </section>
 
       <section className="space-y-2.5">
+        {plan.length > 0 && (
+          <Link
+            to="/session"
+            data-testid="cta-session"
+            data-steps={plan.length}
+            className="flex min-h-[60px] w-full items-center justify-between rounded-2xl bg-emerald-500 px-5 py-3.5 font-bold text-slate-950 active:bg-emerald-400"
+          >
+            <span className="min-w-0 pr-3 text-left">
+              Start today’s session — {minutes} min
+              <span className="block truncate text-xs font-medium opacity-75">
+                {plan.map((step) => stepLabel(step)).join(' · ')}
+              </span>
+            </span>
+            <span aria-hidden className="text-lg">
+              ▶
+            </span>
+          </Link>
+        )}
+
+        {/* The single-purpose buttons stay — a session is an offer, not a
+            requirement — but they step back to outlines when it is on offer,
+            so there is only ever one green button to reach for. */}
         {dueNow > 0 && (
           <Link
             to="/review"
             data-testid="cta-review"
-            className="flex min-h-[52px] w-full items-center justify-between rounded-2xl bg-emerald-500 px-5 py-3.5 font-bold text-slate-950 active:bg-emerald-400"
+            className={`flex min-h-[52px] w-full items-center justify-between rounded-2xl px-5 py-3.5 font-bold ${
+              plan.length > 0
+                ? 'border border-slate-700 bg-slate-900 text-slate-100 active:bg-slate-800'
+                : 'bg-emerald-500 text-slate-950 active:bg-emerald-400'
+            }`}
           >
             <span>Review {dueNow} card{dueNow === 1 ? '' : 's'}</span>
             <span aria-hidden>→</span>
@@ -248,7 +283,7 @@ export function HomeScreen() {
             to={`/lesson/${next.id}`}
             data-testid="cta-lesson"
             className={`flex min-h-[52px] w-full items-center justify-between rounded-2xl px-5 py-3.5 font-bold ${
-              dueNow > 0
+              dueNow > 0 || plan.length > 0
                 ? 'border border-slate-700 bg-slate-900 text-slate-100 active:bg-slate-800'
                 : 'bg-emerald-500 text-slate-950 active:bg-emerald-400'
             }`}

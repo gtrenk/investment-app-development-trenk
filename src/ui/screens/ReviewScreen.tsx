@@ -8,10 +8,12 @@ import type { CardId, CardSeed, Grade } from '@core/types'
 import { XP_PER_CARD, XP_REVIEW_SESSION } from '@core/gamification/xp'
 import { speakableCard } from '@core/speech/text'
 import { ALL_LESSONS } from '@content/units'
+import { useSessionStore } from '@state/session'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { todayQueue } from '@state/selectors'
 import { Flashcard } from '@ui/components/Flashcard'
 import { ProgressBar } from '@ui/components/ProgressBar'
+import { SessionNext } from '@ui/components/SessionNext'
 import { isSupported, speak, stop } from '@ui/speech/tts'
 
 /** cardId → seed, across every authored lesson. */
@@ -48,10 +50,12 @@ export function ReviewScreen() {
 
   const listening = useAppStore((s) => s.settings.readAloud.enabled)
   const rate = useAppStore((s) => s.settings.readAloud.rate)
+  const pace = useAppStore((s) => s.settings.pace)
+  const inSession = useSessionStore((s) => s.active)
 
   const today = appClock.today()
   // Snapshot on first render only.
-  const [session] = useState<CardId[]>(() => todayQueue(srs, today))
+  const [session] = useState<CardId[]>(() => todayQueue(srs, today, pace))
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [graded, setGraded] = useState<Grade[]>([])
@@ -167,14 +171,20 @@ export function ReviewScreen() {
           {nextDue && <span className="block text-slate-500">Next card due {dueLabel(nextDue, today)}.</span>}
         </p>
 
-        <div className="space-y-2.5 pt-1">
-          <Link
-            to="/"
-            className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
-          >
-            Back home
-          </Link>
-        </div>
+        {/* In a session the queue is step one of several, so the panel points
+            forward instead of dumping the learner back at the tab bar. */}
+        {inSession ? (
+          <SessionNext />
+        ) : (
+          <div className="space-y-2.5 pt-1">
+            <Link
+              to="/"
+              className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
+            >
+              Back home
+            </Link>
+          </div>
+        )}
       </div>
     )
   }

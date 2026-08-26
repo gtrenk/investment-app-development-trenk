@@ -19,6 +19,7 @@ import {
 } from '@state/profiles'
 import { isSyncConfigured, noteProfileIdentityChanged } from '@state/sync'
 import { CloudSyncSection, LinkDeviceForm } from '@ui/components/CloudSync'
+import { PaceSection } from '@ui/components/PaceSection'
 import { ReadAloudSection } from '@ui/components/ReadAloudSection'
 
 type Mode =
@@ -262,9 +263,11 @@ export function ProfilePicker() {
             </button>
           </div>
 
-          {/* Read aloud first, then sync, then "Delete": the one irreversible
-              button on the screen stays at the very bottom, where a thumb
-              scrolling the panels cannot reach it by accident. */}
+          {/* Pace and read aloud first, then sync, then "Delete": the one
+              irreversible button on the screen stays at the very bottom, where
+              a thumb scrolling the panels cannot reach it by accident. */}
+          {editing && <PaceSection profile={editing} isActive={editing.id === meta.activeId} />}
+
           {editing && <ReadAloudSection profile={editing} isActive={editing.id === meta.activeId} />}
 
           {editing && <CloudSyncSection profile={editing} />}

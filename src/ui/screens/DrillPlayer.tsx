@@ -25,15 +25,18 @@ import {
 import type { WhatNextOutcome } from '@core/drills/engine'
 import { lastCloseReturn, sliceSeries } from '@core/market/bundled'
 import { XP_DRILL, XP_DRILL_CORRECT_BONUS } from '@core/gamification/xp'
-import { PATTERN_DRILLS, PATTERN_LABELS, WHATNEXT_DRILLS } from '@content/drills/patterns'
+import { PATTERN_LABELS } from '@content/drills/patterns'
 import { FIN_DRILLS, FIN_DRILL_KIND_LABELS } from '@content/drills/financials'
+import { useSessionStore } from '@state/session'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { dayLogFor } from '@state/selectors'
 import { useSeries } from '@ui/data/loadSeries'
+import { useDrillWindows } from '@ui/data/loadWindows'
 import { useStatements } from '@ui/data/loadFinancials'
 import { ATTRIBUTION, CandleChart } from '@ui/charts/CandleChart'
 import { Markdown } from '@ui/components/Markdown'
 import { StatementTable } from '@ui/components/StatementTable'
+import { SessionNext } from '@ui/components/SessionNext'
 import { KIND_COPY, OUTCOMES, OUTCOME_COPY, pct } from '@ui/drills/labels'
 
 /** Bars of lead-in shown before a what-next cutoff. */
@@ -217,6 +220,7 @@ function DonePanel({
 }) {
   const game = useAppStore((s) => s.game)
   const day = dayLogFor({ game }, appClock.today())
+  const inSession = useSessionStore((s) => s.active)
 
   return (
     <div className="anim-fade-up space-y-5 py-4 text-center" data-testid="drill-done">
@@ -270,21 +274,27 @@ function DonePanel({
           : 'Clear your review queue to lock in today’s streak.'}
       </p>
 
-      <div className="space-y-2.5 pt-1">
-        <Link
-          to="/drills"
-          data-testid="drill-back"
-          className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
-        >
-          Back to Drills
-        </Link>
-        <Link
-          to="/drill-stats"
-          className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 font-bold text-slate-100 active:bg-slate-800"
-        >
-          See your calibration
-        </Link>
-      </div>
+      {/* The drill is normally the last step of a session, so this button is
+          usually "Finish session" — the one that opens the celebration. */}
+      {inSession ? (
+        <SessionNext />
+      ) : (
+        <div className="space-y-2.5 pt-1">
+          <Link
+            to="/drills"
+            data-testid="drill-back"
+            className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 font-bold text-slate-950 active:bg-emerald-400"
+          >
+            Back to Drills
+          </Link>
+          <Link
+            to="/drill-stats"
+            className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 font-bold text-slate-100 active:bg-slate-800"
+          >
+            See your calibration
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
@@ -850,13 +860,24 @@ export function DrillPlayer() {
   const drillHistory = useAppStore((s) => s.drillHistory)
   const today = appClock.today()
 
-  // Snapshot both on mount: recording the answer mutates the history that
-  // `pickDailyDrill` and `answeredToday` read, and the drill in play must not
-  // change underneath the learner.
-  const [daily] = useState(() =>
-    pickDailyDrill(PATTERN_DRILLS, WHATNEXT_DRILLS, drillHistory, today, undefined, FIN_DRILLS),
-  )
+  const { windows, loading: windowsLoading } = useDrillWindows()
+
+  // Snapshot the history on mount: recording the answer mutates the history
+  // that `pickDailyDrill` and `answeredToday` read, and the drill in play must
+  // not change underneath the learner. The windows themselves are memoised by
+  // the loader, so `daily` is computed exactly once — on the first render that
+  // has them, which is the very first one whenever the Drills tab has already
+  // triggered the load.
+  const [historyAtMount] = useState(drillHistory)
   const [wasAnswered] = useState(() => answeredToday(drillHistory, today))
+
+  const daily = useMemo(
+    () =>
+      windows
+        ? pickDailyDrill(windows.patterns, windows.whatnext, historyAtMount, today, undefined, FIN_DRILLS)
+        : null,
+    [windows, historyAtMount, today],
+  )
 
   if (wasAnswered) {
     return (
@@ -872,6 +893,14 @@ export function DrillPlayer() {
         >
           Back to Drills
         </Link>
+      </div>
+    )
+  }
+
+  if (windowsLoading) {
+    return (
+      <div className="safe-top px-4 py-16 text-center" data-testid="drill-loading">
+        <p className="text-sm text-slate-500">Loading today’s drill…</p>
       </div>
     )
   }

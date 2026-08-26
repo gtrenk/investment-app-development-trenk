@@ -30,6 +30,9 @@ function runDays(n: number, from: StreakState = newStreakState(), start = D1): S
   return s
 }
 
+// The pace-aware half of this rule — `isGoalMet(day, due, lessonGoal)` and
+// `lessonGoalFor` — has its own table in tests/pace.test.ts. The cases below are
+// the default-goal behaviour, unchanged by pace and deliberately left as-is.
 describe('isGoalMet', () => {
   const cases: { name: string; day: DayLog; due: number; expected: boolean }[] = [
     {

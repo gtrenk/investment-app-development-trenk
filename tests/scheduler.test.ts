@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildQueue, DEFAULT_DUE_CAP, DEFAULT_NEW_CAP } from '@core/srs/scheduler'
+import {
+  buildQueue,
+  DEFAULT_DUE_CAP,
+  DEFAULT_NEW_CAP,
+  queueOptsForPace,
+} from '@core/srs/scheduler'
 import { newCardState } from '@core/srs/sm2'
 import type { CardId, CardState } from '@core/types'
 
@@ -103,6 +108,29 @@ describe('new cards', () => {
     const q = buildQueue(toMap([lapsed]), TODAY)
     expect(q.due).toEqual(['lapsed'])
     expect(q.newCards).toEqual([])
+  })
+})
+
+describe('pace caps', () => {
+  // The cap *arithmetic* is asserted in tests/pace.test.ts; this is the queue
+  // actually built with it — the thing the daily goal then has to be able to
+  // clear.
+  it('introduces one lesson\u2019s worth of new cards per pace point', () => {
+    const cards = Array.from({ length: 40 }, (_, i) =>
+      newCardState(`n${String(i).padStart(2, '0')}`, '2026-03-01'),
+    )
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(1)).newCards).toHaveLength(5)
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(2)).newCards).toHaveLength(10)
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(3)).newCards).toHaveLength(15)
+  })
+
+  it('lets a bigger backlog through at a higher pace', () => {
+    const cards = Array.from({ length: 80 }, (_, i) =>
+      reviewed(`c${String(i).padStart(2, '0')}`, '2026-03-01'),
+    )
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(1)).due).toHaveLength(30)
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(2)).due).toHaveLength(40)
+    expect(buildQueue(toMap(cards), TODAY, queueOptsForPace(3)).due).toHaveLength(50)
   })
 })
 

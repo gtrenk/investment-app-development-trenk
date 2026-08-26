@@ -17,12 +17,19 @@ import type {
 } from '@core/types'
 import { addDays } from '@core/clock'
 import { DRILL_ROTATION_3 } from '@core/drills/engine'
-import { buildQueue } from '@core/srs/scheduler'
+import { buildQueue, queueOptsForPace } from '@core/srs/scheduler'
+import { lessonGoalFor } from '@core/gamification/streak'
+import { DEFAULT_PACE } from '@core/settings'
+import type { Pace } from '@core/settings'
 import { positions, roundCents, roundTo } from '@core/portfolio/engine'
 import type { PriceMap } from '@core/portfolio/engine'
 import { benchmarkEquity } from '@core/portfolio/benchmark'
 import { ALL_LESSONS, ALL_UNITS } from '@content/units'
-import { emptyDay } from './useAppStore'
+// `AppState` is imported for its *type* only — erased at build time, so this
+// module stays free of any runtime dependency on the store (and of the browser
+// APIs the store's storage adapter reaches for at import time). That is what
+// lets a plain Node unit test import these selectors, and @state/session with
+// them.
 import type { AppState } from './useAppStore'
 
 /** Fraction (0–1) of a unit's lessons that are complete. */
@@ -48,12 +55,38 @@ export function isUnitUnlocked(unit: Unit, progress: ProgressState): boolean {
 
 /** The next lesson to study: first incomplete lesson in the first unlocked unit. */
 export function nextLesson(progress: ProgressState): Lesson | undefined {
-  for (const unit of ALL_UNITS) {
-    if (!isUnitUnlocked(unit, progress)) continue
-    const lesson = unit.lessons.find((l) => !progress.completedLessons[l.id])
-    if (lesson) return lesson
+  return upcomingLessons(progress, 1)[0]
+}
+
+/**
+ * The next `n` lessons to study, in the order a session would play them.
+ *
+ * Not simply "the first n incomplete lessons": finishing a lesson can push its
+ * unit past the 80% mark and open the next one, so the walk carries a growing
+ * set of pretend-completed ids and re-asks the unlock question at every step.
+ * Otherwise a learner sitting on lesson 8 of 8 would be offered nothing for the
+ * second half of a pace-2 day.
+ */
+export function upcomingLessons(progress: ProgressState, n: number): Lesson[] {
+  if (n <= 0) return []
+  const out: Lesson[] = []
+  let seen: ProgressState = progress
+
+  while (out.length < n) {
+    let picked: Lesson | undefined
+    for (const unit of ALL_UNITS) {
+      if (!isUnitUnlocked(unit, seen)) continue
+      picked = unit.lessons.find((l) => !seen.completedLessons[l.id])
+      if (picked) break
+    }
+    if (!picked) break
+    out.push(picked)
+    seen = {
+      ...seen,
+      completedLessons: { ...seen.completedLessons, [picked.id]: 'planned' },
+    }
   }
-  return undefined
+  return out
 }
 
 export function lessonsCompletedCount(progress: ProgressState): number {
@@ -62,10 +95,32 @@ export function lessonsCompletedCount(progress: ProgressState): number {
 
 export const TOTAL_LESSONS = ALL_LESSONS.length
 
-/** Today's SRS session, in the order the Review screen plays it. */
-export function todayQueue(srs: Record<CardId, CardState>, today: string): CardId[] {
-  const q = buildQueue(srs, today)
+/** Authored lessons still to do. */
+export function lessonsRemaining(progress: ProgressState): number {
+  return Math.max(0, TOTAL_LESSONS - lessonsCompletedCount(progress))
+}
+
+/** How many lessons today's goal asks for, at this profile's pace. */
+export function lessonGoalToday(progress: ProgressState, pace: Pace): number {
+  return lessonGoalFor(pace, lessonsRemaining(progress))
+}
+
+/**
+ * Today's SRS session, in the order the Review screen plays it.
+ * The caps scale with pace — see `queueOptsForPace`.
+ */
+export function todayQueue(
+  srs: Record<CardId, CardState>,
+  today: string,
+  pace: Pace = DEFAULT_PACE,
+): CardId[] {
+  const q = buildQueue(srs, today, queueOptsForPace(pace))
   return [...q.due, ...q.newCards]
+}
+
+/** A day nobody has touched yet. */
+export function emptyDay(): DayLog {
+  return { reviews: 0, lessons: 0, drills: 0, xp: 0, goalMet: false }
 }
 
 export function dayLogFor(state: Pick<AppState, 'game'>, today: string): DayLog {

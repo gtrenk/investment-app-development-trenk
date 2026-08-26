@@ -19,13 +19,31 @@ export function newStreakState(): StreakState {
 
 /**
  * Daily goal: clear the review queue (or grind 20 cards, whichever comes first)
- * AND do at least one lesson or drill. Reviewing alone isn't enough — the goal
- * always includes learning something new or applying it.
+ * AND do `lessonGoal` pieces of new work. Reviewing alone isn't enough — the
+ * goal always includes learning something new or applying it.
+ *
+ * "Pieces of new work" is lessons plus *one* drill: there is only ever one
+ * drill a day, so it counts once and a lesson counts for the rest. At the
+ * default `lessonGoal` of 1 that is exactly the original rule — one lesson OR
+ * one drill — which is why every call site that has no pace to hand can keep
+ * omitting the argument. At pace 3 a day of two lessons and the drill still
+ * lands the goal; three lessons and no drill does too.
  */
-export function isGoalMet(day: DayLog, dueCount: number): boolean {
+export function isGoalMet(day: DayLog, dueCount: number, lessonGoal = 1): boolean {
   const reviewsDone = day.reviews >= dueCount || day.reviews >= REVIEW_GOAL_CAP
-  const activityDone = day.lessons >= 1 || day.drills >= 1
-  return reviewsDone && activityDone
+  const activity = day.lessons + Math.min(day.drills, 1)
+  return reviewsDone && activity >= Math.max(1, lessonGoal)
+}
+
+/**
+ * How much new work today's goal asks for at this pace.
+ *
+ * Capped by what is left to study — the last day of the curriculum cannot ask
+ * for three lessons when two remain — and floored at 1, so a learner who has
+ * finished every authored lesson can still keep a streak alive with the drill.
+ */
+export function lessonGoalFor(pace: number, lessonsRemaining: number): number {
+  return Math.max(1, Math.min(Math.round(pace), lessonsRemaining))
 }
 
 /**

@@ -12,9 +12,10 @@
 import { STORAGE_KEYS } from '@core/storage/adapter'
 import { namespacedKey } from '@core/storage/profiles'
 import { defaultSettings, sanitizeSettings } from '@core/settings'
-import type { ReadAloudSettings, Settings } from '@core/settings'
+import type { Pace, ReadAloudSettings, Settings } from '@core/settings'
+import type { ProgressState } from '@core/types'
 import { rawStorage } from './profiles'
-import { useAppStore } from './useAppStore'
+import { emptyProgress, useAppStore } from './useAppStore'
 
 export async function loadProfileSettings(id: string): Promise<Settings> {
   try {
@@ -22,6 +23,22 @@ export async function loadProfileSettings(id: string): Promise<Settings> {
     return sanitizeSettings(raw)
   } catch {
     return defaultSettings()
+  }
+}
+
+/**
+ * One profile's lesson progress, read the same way as its settings.
+ *
+ * The pace panel needs it to say how long the curriculum will take *this*
+ * learner — an estimate computed from the whole curriculum would be wrong for
+ * anyone who has already started.
+ */
+export async function loadProfileProgress(id: string): Promise<ProgressState> {
+  try {
+    const raw = await rawStorage.get<ProgressState>(namespacedKey(id, STORAGE_KEYS.progress))
+    return { ...emptyProgress(), ...(raw ?? {}) }
+  } catch {
+    return emptyProgress()
   }
 }
 
@@ -44,6 +61,24 @@ export async function saveProfileReadAloud(
     // Same key, same namespace — and it additionally marks the key dirty for
     // cloud sync and re-renders any screen already reading the preference.
     useAppStore.getState().setReadAloud(patch)
+    return next
+  }
+
+  await rawStorage.set(namespacedKey(id, STORAGE_KEYS.settings), next)
+  return next
+}
+
+/** The same dance for the daily pace. */
+export async function saveProfilePace(
+  id: string,
+  current: Settings,
+  pace: Pace,
+  isActive: boolean,
+): Promise<Settings> {
+  const next: Settings = { ...current, pace }
+
+  if (isActive && useAppStore.getState().ready) {
+    useAppStore.getState().setPace(pace)
     return next
   }
 

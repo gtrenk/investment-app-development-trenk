@@ -1,0 +1,1409 @@
+{
+  "version": 1,
+  "source": "synthetic",
+  "generatedAt": "2026-08-21T00:00:00.000Z",
+  "patterns": [
+    {
+      "id": "pd-aapl-1332",
+      "symbol": "AAPL",
+      "startIdx": 1332,
+      "endIdx": 1396,
+      "answer": "rising-wedge",
+      "distractors": [
+        "consolidation",
+        "double-top",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 67.7% across 6 upper and 3 lower touches, alternating 5 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-aapl-1704",
+      "symbol": "AAPL",
+      "startIdx": 1704,
+      "endIdx": 1812,
+      "answer": "support-bounce",
+      "distractors": [
+        "consolidation",
+        "double-bottom",
+        "downtrend"
+      ],
+      "explain": "Price came down to roughly the same shelf 3 times and turned up from it every time, the weakest bounce still worth 11.5%. The touches sit within 0.3% of each other, which is what makes it a level rather than a coincidence. Support is a zone, not a line — and it only counts once it has been tested more than twice."
+    },
+    {
+      "id": "pd-amzn-288",
+      "symbol": "AMZN",
+      "startIdx": 288,
+      "endIdx": 344,
+      "answer": "double-bottom",
+      "distractors": [
+        "downtrend",
+        "falling-wedge",
+        "support-bounce"
+      ],
+      "explain": "Two troughs 16 bars apart within 0.14% of each other, split by a rally 20.9% high, then a 36.9% advance that closed above that middle peak — the neckline break that confirms it. The second test failing to make a new low is the tell: sellers had their chance at that price and could not push through."
+    },
+    {
+      "id": "pd-amzn-1404",
+      "symbol": "AMZN",
+      "startIdx": 1404,
+      "endIdx": 1452,
+      "answer": "symmetrical-triangle",
+      "distractors": [
+        "consolidation",
+        "descending-triangle",
+        "falling-wedge"
+      ],
+      "explain": "Lower highs and higher lows converging: 4 touches on the falling ceiling, 4 on the rising floor, 5 alternations between them, and 80.4% of the range squeezed out. A symmetrical triangle is direction-neutral by construction — it says volatility is compressing, not which way it will release, so the trade is the break, never the anticipation."
+    },
+    {
+      "id": "pd-amzn-1684",
+      "symbol": "AMZN",
+      "startIdx": 1684,
+      "endIdx": 1740,
+      "answer": "descending-triangle",
+      "distractors": [
+        "bear-flag",
+        "consolidation",
+        "falling-wedge"
+      ],
+      "explain": "A flat floor and a falling ceiling: 3 touches of one support level against 6 lower highs, alternating 5 times, the range contracting 79.8%. Each rally dies sooner while the same shelf is defended — pressure building on the floor, usually resolving downward. Watch the volume on the eventual break, not the shape."
+    },
+    {
+      "id": "pd-ba-1604",
+      "symbol": "BA",
+      "startIdx": 1604,
+      "endIdx": 1660,
+      "answer": "double-bottom",
+      "distractors": [
+        "cup-and-handle",
+        "downtrend",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Two troughs 22 bars apart within 0.31% of each other, split by a rally 19.0% high, then a 33.7% advance that closed above that middle peak — the neckline break that confirms it. The second test failing to make a new low is the tell: sellers had their chance at that price and could not push through."
+    },
+    {
+      "id": "pd-ba-1748",
+      "symbol": "BA",
+      "startIdx": 1748,
+      "endIdx": 1796,
+      "answer": "uptrend",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "rising-wedge"
+      ],
+      "explain": "Higher highs and higher lows, 49 bars of them: price closed +35.5% over the window and the deepest pullback along the way was only 4.1% off the running peak. A line drawn under the lows is never broken — 4 of the pivot lows sit above the one before. That is the whole definition of an uptrend, and it is the context every other pattern gets read inside: the same triangle means something different in an uptrend than in a downtrend."
+    },
+    {
+      "id": "pd-bac-32",
+      "symbol": "BAC",
+      "startIdx": 32,
+      "endIdx": 80,
+      "answer": "breakout",
+      "distractors": [
+        "ascending-triangle",
+        "bull-flag",
+        "uptrend"
+      ],
+      "explain": "The first 32 bars are a 10.1%-wide box; then price closes clean through the ceiling and finishes 5.8% above it, on volume running 1.2× the base's average. The volume is what separates a breakout from a fakeout: a real break needs new buyers, and their footprint is the volume spike. A break on quiet volume is the one that gets sold back into the range."
+    },
+    {
+      "id": "pd-bac-752",
+      "symbol": "BAC",
+      "startIdx": 752,
+      "endIdx": 848,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "inverse-head-and-shoulders",
+        "uptrend"
+      ],
+      "explain": "A rounded 21.4%-deep base spread over 70 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 28-bar handle that drifts back only 11.9%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-bac-984",
+      "symbol": "BAC",
+      "startIdx": 984,
+      "endIdx": 1040,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "consolidation"
+      ],
+      "explain": "A flat ceiling and a rising floor: 7 touches of the same resistance level and 5 touches of a rising support line, alternating 8 times, with the gap between them closing by 68.6%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-bac-1728",
+      "symbol": "BAC",
+      "startIdx": 1728,
+      "endIdx": 1776,
+      "answer": "falling-wedge",
+      "distractors": [
+        "consolidation",
+        "descending-triangle",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries fall, but the ceiling falls faster than the floor, contracting the range 59.6% over 3 upper and 4 lower touches with 5 alternations. Selling is losing momentum even as price slips — the classic bullish-reversal reading. The trap is calling every downtrend a falling wedge: without containment and repeated touches on both lines there is no wedge, just a decline."
+    },
+    {
+      "id": "pd-bac-2152",
+      "symbol": "BAC",
+      "startIdx": 2152,
+      "endIdx": 2236,
+      "answer": "uptrend",
+      "distractors": [
+        "ascending-triangle",
+        "bull-flag",
+        "rising-wedge"
+      ],
+      "explain": "Higher highs and higher lows, 85 bars of them: price closed +52.5% over the window and the deepest pullback along the way was only 2.9% off the running peak. A line drawn under the lows is never broken — 6 of the pivot lows sit above the one before. That is the whole definition of an uptrend, and it is the context every other pattern gets read inside: the same triangle means something different in an uptrend than in a downtrend."
+    },
+    {
+      "id": "pd-cat-712",
+      "symbol": "CAT",
+      "startIdx": 712,
+      "endIdx": 820,
+      "answer": "uptrend",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "cup-and-handle"
+      ],
+      "explain": "Higher highs and higher lows, 109 bars of them: price closed +57.4% over the window and the deepest pullback along the way was only 4.2% off the running peak. A line drawn under the lows is never broken — 8 of the pivot lows sit above the one before. That is the whole definition of an uptrend, and it is the context every other pattern gets read inside: the same triangle means something different in an uptrend than in a downtrend."
+    },
+    {
+      "id": "pd-cat-896",
+      "symbol": "CAT",
+      "startIdx": 896,
+      "endIdx": 944,
+      "answer": "falling-wedge",
+      "distractors": [
+        "bear-flag",
+        "consolidation",
+        "double-bottom"
+      ],
+      "explain": "Both boundaries fall, but the ceiling falls faster than the floor, contracting the range 83.6% over 5 upper and 6 lower touches with 6 alternations. Selling is losing momentum even as price slips — the classic bullish-reversal reading. The trap is calling every downtrend a falling wedge: without containment and repeated touches on both lines there is no wedge, just a decline."
+    },
+    {
+      "id": "pd-cat-1048",
+      "symbol": "CAT",
+      "startIdx": 1048,
+      "endIdx": 1156,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "inverse-head-and-shoulders",
+        "uptrend"
+      ],
+      "explain": "A rounded 17.6%-deep base spread over 69 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 31-bar handle that drifts back only 10.9%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-cost-1432",
+      "symbol": "COST",
+      "startIdx": 1432,
+      "endIdx": 1480,
+      "answer": "double-bottom",
+      "distractors": [
+        "cup-and-handle",
+        "inverse-head-and-shoulders",
+        "support-bounce"
+      ],
+      "explain": "Two troughs 15 bars apart within 0.02% of each other, split by a rally 23.1% high, then a 34.9% advance that closed above that middle peak — the neckline break that confirms it. The second test failing to make a new low is the tell: sellers had their chance at that price and could not push through."
+    },
+    {
+      "id": "pd-cost-2416",
+      "symbol": "COST",
+      "startIdx": 2416,
+      "endIdx": 2464,
+      "answer": "consolidation",
+      "distractors": [
+        "breakout",
+        "support-bounce",
+        "symmetrical-triangle"
+      ],
+      "explain": "A box, not a pattern with a bias: the range is only 8.9% wide, price crossed its midline 18 times, and both edges were tested repeatedly (4 touches of the ceiling, 4 of the floor). Nothing here predicts direction — a consolidation is the market storing energy, and the tradeable event is the break out of it, not the box itself."
+    },
+    {
+      "id": "pd-cvx-872",
+      "symbol": "CVX",
+      "startIdx": 872,
+      "endIdx": 928,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat ceiling and a rising floor: 6 touches of the same resistance level and 6 touches of a rising support line, alternating 8 times, with the gap between them closing by 70.6%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-cvx-1256",
+      "symbol": "CVX",
+      "startIdx": 1256,
+      "endIdx": 1352,
+      "answer": "double-bottom",
+      "distractors": [
+        "cup-and-handle",
+        "downtrend",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Two troughs 32 bars apart within 0.01% of each other, split by a rally 22.0% high, then a 42.7% advance that closed above that middle peak — the neckline break that confirms it. The second test failing to make a new low is the tell: sellers had their chance at that price and could not push through."
+    },
+    {
+      "id": "pd-cvx-1412",
+      "symbol": "CVX",
+      "startIdx": 1412,
+      "endIdx": 1508,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "double-bottom",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "A rounded 16.8%-deep base spread over 56 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 28-bar handle that drifts back only 7.5%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-dis-696",
+      "symbol": "DIS",
+      "startIdx": 696,
+      "endIdx": 752,
+      "answer": "downtrend",
+      "distractors": [
+        "bear-flag",
+        "falling-wedge",
+        "head-and-shoulders"
+      ],
+      "explain": "Lower highs and lower lows across 57 bars: price closed −29.1% and the best rally inside the window only recovered 3.9% before rolling over again. 4 pivot highs came in under the one before. Downtrends are where beginners lose money buying \"cheap\" — the definition of a downtrend is that every level that looked cheap got cheaper."
+    },
+    {
+      "id": "pd-dis-1256",
+      "symbol": "DIS",
+      "startIdx": 1256,
+      "endIdx": 1304,
+      "answer": "double-top",
+      "distractors": [
+        "rising-wedge",
+        "symmetrical-triangle",
+        "uptrend"
+      ],
+      "explain": "Two peaks 19 bars apart at within 0.67% of the same price, separated by a trough 23.7% below them, and then a fall of 35.0% that closed below the middle trough — the neckline break that confirms the pattern. Twice rejected at one price means the buyers who were willing to pay it are used up; the neckline is where that verdict becomes tradeable."
+    },
+    {
+      "id": "pd-goog-300",
+      "symbol": "GOOG",
+      "startIdx": 300,
+      "endIdx": 348,
+      "answer": "falling-wedge",
+      "distractors": [
+        "bear-flag",
+        "descending-triangle",
+        "double-bottom"
+      ],
+      "explain": "Both boundaries fall, but the ceiling falls faster than the floor, contracting the range 58.2% over 4 upper and 6 lower touches with 7 alternations. Selling is losing momentum even as price slips — the classic bullish-reversal reading. The trap is calling every downtrend a falling wedge: without containment and repeated touches on both lines there is no wedge, just a decline."
+    },
+    {
+      "id": "pd-goog-1636",
+      "symbol": "GOOG",
+      "startIdx": 1636,
+      "endIdx": 1700,
+      "answer": "double-top",
+      "distractors": [
+        "consolidation",
+        "head-and-shoulders",
+        "uptrend"
+      ],
+      "explain": "Two peaks 23 bars apart at within 1.08% of the same price, separated by a trough 23.2% below them, and then a fall of 36.7% that closed below the middle trough — the neckline break that confirms the pattern. Twice rejected at one price means the buyers who were willing to pay it are used up; the neckline is where that verdict becomes tradeable."
+    },
+    {
+      "id": "pd-hd-92",
+      "symbol": "HD",
+      "startIdx": 92,
+      "endIdx": 140,
+      "answer": "rising-wedge",
+      "distractors": [
+        "bull-flag",
+        "consolidation",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 68.7% across 4 upper and 5 lower touches, alternating 6 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-hd-612",
+      "symbol": "HD",
+      "startIdx": 612,
+      "endIdx": 660,
+      "answer": "descending-triangle",
+      "distractors": [
+        "consolidation",
+        "downtrend",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat floor and a falling ceiling: 6 touches of one support level against 5 lower highs, alternating 6 times, the range contracting 64.5%. Each rally dies sooner while the same shelf is defended — pressure building on the floor, usually resolving downward. Watch the volume on the eventual break, not the shape."
+    },
+    {
+      "id": "pd-hd-1416",
+      "symbol": "HD",
+      "startIdx": 1416,
+      "endIdx": 1480,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "double-bottom",
+        "downtrend",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 0.1%), with a neckline across the two intervening peaks. Price has since risen 58.9% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-hd-1884",
+      "symbol": "HD",
+      "startIdx": 1884,
+      "endIdx": 1932,
+      "answer": "double-top",
+      "distractors": [
+        "head-and-shoulders",
+        "symmetrical-triangle",
+        "uptrend"
+      ],
+      "explain": "Two peaks 25 bars apart at within 0.01% of the same price, separated by a trough 15.3% below them, and then a fall of 23.7% that closed below the middle trough — the neckline break that confirms the pattern. Twice rejected at one price means the buyers who were willing to pay it are used up; the neckline is where that verdict becomes tradeable."
+    },
+    {
+      "id": "pd-jnj-148",
+      "symbol": "JNJ",
+      "startIdx": 148,
+      "endIdx": 212,
+      "answer": "downtrend",
+      "distractors": [
+        "bear-flag",
+        "descending-triangle",
+        "head-and-shoulders"
+      ],
+      "explain": "Lower highs and lower lows across 65 bars: price closed −30.0% and the best rally inside the window only recovered 2.7% before rolling over again. 4 pivot highs came in under the one before. Downtrends are where beginners lose money buying \"cheap\" — the definition of a downtrend is that every level that looked cheap got cheaper."
+    },
+    {
+      "id": "pd-jnj-644",
+      "symbol": "JNJ",
+      "startIdx": 644,
+      "endIdx": 692,
+      "answer": "consolidation",
+      "distractors": [
+        "ascending-triangle",
+        "breakout",
+        "symmetrical-triangle"
+      ],
+      "explain": "A box, not a pattern with a bias: the range is only 7.1% wide, price crossed its midline 12 times, and both edges were tested repeatedly (3 touches of the ceiling, 4 of the floor). Nothing here predicts direction — a consolidation is the market storing energy, and the tradeable event is the break out of it, not the box itself."
+    },
+    {
+      "id": "pd-jnj-952",
+      "symbol": "JNJ",
+      "startIdx": 952,
+      "endIdx": 1060,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat ceiling and a rising floor: 10 touches of the same resistance level and 11 touches of a rising support line, alternating 16 times, with the gap between them closing by 60.3%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-jnj-2232",
+      "symbol": "JNJ",
+      "startIdx": 2232,
+      "endIdx": 2280,
+      "answer": "symmetrical-triangle",
+      "distractors": [
+        "ascending-triangle",
+        "consolidation",
+        "falling-wedge"
+      ],
+      "explain": "Lower highs and higher lows converging: 3 touches on the falling ceiling, 6 on the rising floor, 5 alternations between them, and 97.9% of the range squeezed out. A symmetrical triangle is direction-neutral by construction — it says volatility is compressing, not which way it will release, so the trade is the break, never the anticipation."
+    },
+    {
+      "id": "pd-jpm-68",
+      "symbol": "JPM",
+      "startIdx": 68,
+      "endIdx": 124,
+      "answer": "breakout",
+      "distractors": [
+        "ascending-triangle",
+        "cup-and-handle",
+        "uptrend"
+      ],
+      "explain": "The first 38 bars are a 8.4%-wide box; then price closes clean through the ceiling and finishes 9.5% above it, on volume running 1.2× the base's average. The volume is what separates a breakout from a fakeout: a real break needs new buyers, and their footprint is the volume spike. A break on quiet volume is the one that gets sold back into the range."
+    },
+    {
+      "id": "pd-jpm-320",
+      "symbol": "JPM",
+      "startIdx": 320,
+      "endIdx": 404,
+      "answer": "support-bounce",
+      "distractors": [
+        "consolidation",
+        "double-bottom",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Price came down to roughly the same shelf 5 times and turned up from it every time, the weakest bounce still worth 9.5%. The touches sit within 1.0% of each other, which is what makes it a level rather than a coincidence. Support is a zone, not a line — and it only counts once it has been tested more than twice."
+    },
+    {
+      "id": "pd-jpm-940",
+      "symbol": "JPM",
+      "startIdx": 940,
+      "endIdx": 1004,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "cup-and-handle",
+        "falling-wedge",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 0.8%), with a neckline across the two intervening peaks. Price has since risen 38.6% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-ko-284",
+      "symbol": "KO",
+      "startIdx": 284,
+      "endIdx": 340,
+      "answer": "falling-wedge",
+      "distractors": [
+        "descending-triangle",
+        "double-bottom",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries fall, but the ceiling falls faster than the floor, contracting the range 82.4% over 4 upper and 4 lower touches with 5 alternations. Selling is losing momentum even as price slips — the classic bullish-reversal reading. The trap is calling every downtrend a falling wedge: without containment and repeated touches on both lines there is no wedge, just a decline."
+    },
+    {
+      "id": "pd-ko-792",
+      "symbol": "KO",
+      "startIdx": 792,
+      "endIdx": 912,
+      "answer": "breakout",
+      "distractors": [
+        "bull-flag",
+        "consolidation",
+        "uptrend"
+      ],
+      "explain": "The first 79 bars are a 11.5%-wide box; then price closes clean through the ceiling and finishes 15.0% above it, on volume running 1.2× the base's average. The volume is what separates a breakout from a fakeout: a real break needs new buyers, and their footprint is the volume spike. A break on quiet volume is the one that gets sold back into the range."
+    },
+    {
+      "id": "pd-ma-712",
+      "symbol": "MA",
+      "startIdx": 712,
+      "endIdx": 796,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "consolidation",
+        "uptrend"
+      ],
+      "explain": "A rounded 16.3%-deep base spread over 61 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 24-bar handle that drifts back only 9.8%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-ma-1012",
+      "symbol": "MA",
+      "startIdx": 1012,
+      "endIdx": 1068,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat ceiling and a rising floor: 6 touches of the same resistance level and 5 touches of a rising support line, alternating 8 times, with the gap between them closing by 76.7%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-ma-1660",
+      "symbol": "MA",
+      "startIdx": 1660,
+      "endIdx": 1708,
+      "answer": "bull-flag",
+      "distractors": [
+        "breakout",
+        "consolidation",
+        "uptrend"
+      ],
+      "explain": "A 18.9% pole in 23 bars, then 26 bars of tight drift: the whole flag is only 8.9% wide, it gave back just 45.5% of the pole, and volume in the flag ran at 0.94× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-meta-380",
+      "symbol": "META",
+      "startIdx": 380,
+      "endIdx": 464,
+      "answer": "support-bounce",
+      "distractors": [
+        "consolidation",
+        "double-bottom",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Price came down to roughly the same shelf 4 times and turned up from it every time, the weakest bounce still worth 14.2%. The touches sit within 0.8% of each other, which is what makes it a level rather than a coincidence. Support is a zone, not a line — and it only counts once it has been tested more than twice."
+    },
+    {
+      "id": "pd-meta-1964",
+      "symbol": "META",
+      "startIdx": 1964,
+      "endIdx": 2048,
+      "answer": "support-bounce",
+      "distractors": [
+        "consolidation",
+        "double-bottom",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Price came down to roughly the same shelf 5 times and turned up from it every time, the weakest bounce still worth 13.2%. The touches sit within 2.3% of each other, which is what makes it a level rather than a coincidence. Support is a zone, not a line — and it only counts once it has been tested more than twice."
+    },
+    {
+      "id": "pd-msft-340",
+      "symbol": "MSFT",
+      "startIdx": 340,
+      "endIdx": 388,
+      "answer": "bull-flag",
+      "distractors": [
+        "breakout",
+        "consolidation",
+        "rising-wedge"
+      ],
+      "explain": "A 16.9% pole in 23 bars, then 26 bars of tight drift: the whole flag is only 8.4% wide, it gave back just 49.0% of the pole, and volume in the flag ran at 0.94× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-msft-2216",
+      "symbol": "MSFT",
+      "startIdx": 2216,
+      "endIdx": 2280,
+      "answer": "bull-flag",
+      "distractors": [
+        "breakout",
+        "rising-wedge",
+        "uptrend"
+      ],
+      "explain": "A 17.8% pole in 30 bars, then 35 bars of tight drift: the whole flag is only 7.5% wide, it gave back just 33.2% of the pole, and volume in the flag ran at 0.94× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-msft-2368",
+      "symbol": "MSFT",
+      "startIdx": 2368,
+      "endIdx": 2424,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "cup-and-handle",
+        "downtrend",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 1.1%), with a neckline across the two intervening peaks. Price has since risen 54.9% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-nflx-544",
+      "symbol": "NFLX",
+      "startIdx": 544,
+      "endIdx": 628,
+      "answer": "downtrend",
+      "distractors": [
+        "bear-flag",
+        "descending-triangle",
+        "head-and-shoulders"
+      ],
+      "explain": "Lower highs and lower lows across 85 bars: price closed −38.4% and the best rally inside the window only recovered 9.1% before rolling over again. 7 pivot highs came in under the one before. Downtrends are where beginners lose money buying \"cheap\" — the definition of a downtrend is that every level that looked cheap got cheaper."
+    },
+    {
+      "id": "pd-nflx-2092",
+      "symbol": "NFLX",
+      "startIdx": 2092,
+      "endIdx": 2140,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "downtrend",
+        "falling-wedge",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 1.4%), with a neckline across the two intervening peaks. Price has since risen 54.0% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-nvda-880",
+      "symbol": "NVDA",
+      "startIdx": 880,
+      "endIdx": 936,
+      "answer": "double-top",
+      "distractors": [
+        "consolidation",
+        "symmetrical-triangle",
+        "uptrend"
+      ],
+      "explain": "Two peaks 22 bars apart at within 0.26% of the same price, separated by a trough 20.6% below them, and then a fall of 27.8% that closed below the middle trough — the neckline break that confirms the pattern. Twice rejected at one price means the buyers who were willing to pay it are used up; the neckline is where that verdict becomes tradeable."
+    },
+    {
+      "id": "pd-nvda-1356",
+      "symbol": "NVDA",
+      "startIdx": 1356,
+      "endIdx": 1404,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "cup-and-handle",
+        "downtrend",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 0.2%), with a neckline across the two intervening peaks. Price has since risen 26.4% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-pfe-0",
+      "symbol": "PFE",
+      "startIdx": 0,
+      "endIdx": 56,
+      "answer": "downtrend",
+      "distractors": [
+        "bear-flag",
+        "double-top",
+        "falling-wedge"
+      ],
+      "explain": "Lower highs and lower lows across 57 bars: price closed −28.2% and the best rally inside the window only recovered 5.3% before rolling over again. 3 pivot highs came in under the one before. Downtrends are where beginners lose money buying \"cheap\" — the definition of a downtrend is that every level that looked cheap got cheaper."
+    },
+    {
+      "id": "pd-pfe-264",
+      "symbol": "PFE",
+      "startIdx": 264,
+      "endIdx": 336,
+      "answer": "consolidation",
+      "distractors": [
+        "breakout",
+        "support-bounce",
+        "symmetrical-triangle"
+      ],
+      "explain": "A box, not a pattern with a bias: the range is only 10.4% wide, price crossed its midline 14 times, and both edges were tested repeatedly (4 touches of the ceiling, 3 of the floor). Nothing here predicts direction — a consolidation is the market storing energy, and the tradeable event is the break out of it, not the box itself."
+    },
+    {
+      "id": "pd-pg-64",
+      "symbol": "PG",
+      "startIdx": 64,
+      "endIdx": 120,
+      "answer": "bull-flag",
+      "distractors": [
+        "consolidation",
+        "rising-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "A 15.1% pole in 25 bars, then 32 bars of tight drift: the whole flag is only 7.4% wide, it gave back just 39.4% of the pole, and volume in the flag ran at 0.94× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-pg-252",
+      "symbol": "PG",
+      "startIdx": 252,
+      "endIdx": 300,
+      "answer": "descending-triangle",
+      "distractors": [
+        "bear-flag",
+        "consolidation",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat floor and a falling ceiling: 5 touches of one support level against 5 lower highs, alternating 8 times, the range contracting 87.4%. Each rally dies sooner while the same shelf is defended — pressure building on the floor, usually resolving downward. Watch the volume on the eventual break, not the shape."
+    },
+    {
+      "id": "pd-pg-1888",
+      "symbol": "PG",
+      "startIdx": 1888,
+      "endIdx": 1936,
+      "answer": "rising-wedge",
+      "distractors": [
+        "ascending-triangle",
+        "double-top",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 73.7% across 3 upper and 6 lower touches, alternating 5 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-pg-2028",
+      "symbol": "PG",
+      "startIdx": 2028,
+      "endIdx": 2076,
+      "answer": "consolidation",
+      "distractors": [
+        "breakout",
+        "descending-triangle",
+        "support-bounce"
+      ],
+      "explain": "A box, not a pattern with a bias: the range is only 5.0% wide, price crossed its midline 12 times, and both edges were tested repeatedly (3 touches of the ceiling, 4 of the floor). Nothing here predicts direction — a consolidation is the market storing energy, and the tradeable event is the break out of it, not the box itself."
+    },
+    {
+      "id": "pd-pg-2168",
+      "symbol": "PG",
+      "startIdx": 2168,
+      "endIdx": 2216,
+      "answer": "rising-wedge",
+      "distractors": [
+        "bull-flag",
+        "double-top",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 62.9% across 5 upper and 5 lower touches, alternating 8 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-qqq-312",
+      "symbol": "QQQ",
+      "startIdx": 312,
+      "endIdx": 368,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "bull-flag",
+        "rising-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat ceiling and a rising floor: 6 touches of the same resistance level and 6 touches of a rising support line, alternating 9 times, with the gap between them closing by 77.2%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-qqq-708",
+      "symbol": "QQQ",
+      "startIdx": 708,
+      "endIdx": 816,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "inverse-head-and-shoulders",
+        "uptrend"
+      ],
+      "explain": "A rounded 13.3%-deep base spread over 78 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 31-bar handle that drifts back only 3.7%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-qqq-940",
+      "symbol": "QQQ",
+      "startIdx": 940,
+      "endIdx": 988,
+      "answer": "bull-flag",
+      "distractors": [
+        "consolidation",
+        "rising-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "A 32.3% pole in 22 bars, then 27 bars of tight drift: the whole flag is only 8.9% wide, it gave back just 26.9% of the pole, and volume in the flag ran at 0.89× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-qqq-1868",
+      "symbol": "QQQ",
+      "startIdx": 1868,
+      "endIdx": 1916,
+      "answer": "consolidation",
+      "distractors": [
+        "ascending-triangle",
+        "breakout",
+        "support-bounce"
+      ],
+      "explain": "A box, not a pattern with a bias: the range is only 4.4% wide, price crossed its midline 15 times, and both edges were tested repeatedly (4 touches of the ceiling, 5 of the floor). Nothing here predicts direction — a consolidation is the market storing energy, and the tradeable event is the break out of it, not the box itself."
+    },
+    {
+      "id": "pd-qqq-2356",
+      "symbol": "QQQ",
+      "startIdx": 2356,
+      "endIdx": 2476,
+      "answer": "breakout",
+      "distractors": [
+        "bull-flag",
+        "consolidation",
+        "cup-and-handle"
+      ],
+      "explain": "The first 79 bars are a 9.4%-wide box; then price closes clean through the ceiling and finishes 16.3% above it, on volume running 1.2× the base's average. The volume is what separates a breakout from a fakeout: a real break needs new buyers, and their footprint is the volume spike. A break on quiet volume is the one that gets sold back into the range."
+    },
+    {
+      "id": "pd-spy-200",
+      "symbol": "SPY",
+      "startIdx": 200,
+      "endIdx": 264,
+      "answer": "rising-wedge",
+      "distractors": [
+        "ascending-triangle",
+        "consolidation",
+        "double-top"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 62.4% across 7 upper and 6 lower touches, alternating 8 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-spy-724",
+      "symbol": "SPY",
+      "startIdx": 724,
+      "endIdx": 780,
+      "answer": "rising-wedge",
+      "distractors": [
+        "ascending-triangle",
+        "bull-flag",
+        "consolidation"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 80.9% across 6 upper and 6 lower touches, alternating 10 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-spy-960",
+      "symbol": "SPY",
+      "startIdx": 960,
+      "endIdx": 1016,
+      "answer": "rising-wedge",
+      "distractors": [
+        "ascending-triangle",
+        "bull-flag",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries rise, but the floor rises faster than the ceiling: the range has narrowed 88.6% across 6 upper and 4 lower touches, alternating 7 times. That is the bearish part — buyers must pay ever higher prices for ever smaller gains. Do not confuse it with an uptrend: a wedge *converges*, and the price must actually be bouncing between both lines."
+    },
+    {
+      "id": "pd-spy-1080",
+      "symbol": "SPY",
+      "startIdx": 1080,
+      "endIdx": 1152,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "bull-flag",
+        "rising-wedge"
+      ],
+      "explain": "A flat ceiling and a rising floor: 5 touches of the same resistance level and 5 touches of a rising support line, alternating 6 times, with the gap between them closing by 89.8%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-tsla-1724",
+      "symbol": "TSLA",
+      "startIdx": 1724,
+      "endIdx": 1772,
+      "answer": "downtrend",
+      "distractors": [
+        "descending-triangle",
+        "double-top",
+        "head-and-shoulders"
+      ],
+      "explain": "Lower highs and lower lows across 49 bars: price closed −40.0% and the best rally inside the window only recovered 3.9% before rolling over again. 1 pivot highs came in under the one before. Downtrends are where beginners lose money buying \"cheap\" — the definition of a downtrend is that every level that looked cheap got cheaper."
+    },
+    {
+      "id": "pd-tsla-1860",
+      "symbol": "TSLA",
+      "startIdx": 1860,
+      "endIdx": 1908,
+      "answer": "uptrend",
+      "distractors": [
+        "breakout",
+        "cup-and-handle",
+        "rising-wedge"
+      ],
+      "explain": "Higher highs and higher lows, 49 bars of them: price closed +71.6% over the window and the deepest pullback along the way was only 3.9% off the running peak. A line drawn under the lows is never broken — 1 of the pivot lows sit above the one before. That is the whole definition of an uptrend, and it is the context every other pattern gets read inside: the same triangle means something different in an uptrend than in a downtrend."
+    },
+    {
+      "id": "pd-unh-1588",
+      "symbol": "UNH",
+      "startIdx": 1588,
+      "endIdx": 1636,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "double-bottom",
+        "downtrend",
+        "falling-wedge"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 0.7%), with a neckline across the two intervening peaks. Price has since risen 29.0% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-unh-1860",
+      "symbol": "UNH",
+      "startIdx": 1860,
+      "endIdx": 1944,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "consolidation",
+        "double-bottom"
+      ],
+      "explain": "A rounded 30.4%-deep base spread over 53 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 24-bar handle that drifts back only 9.9%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    },
+    {
+      "id": "pd-unh-2444",
+      "symbol": "UNH",
+      "startIdx": 2444,
+      "endIdx": 2500,
+      "answer": "descending-triangle",
+      "distractors": [
+        "bear-flag",
+        "falling-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat floor and a falling ceiling: 6 touches of one support level against 5 lower highs, alternating 8 times, the range contracting 60.2%. Each rally dies sooner while the same shelf is defended — pressure building on the floor, usually resolving downward. Watch the volume on the eventual break, not the shape."
+    },
+    {
+      "id": "pd-v-724",
+      "symbol": "V",
+      "startIdx": 724,
+      "endIdx": 788,
+      "answer": "bear-flag",
+      "distractors": [
+        "downtrend",
+        "falling-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "A 14.7% drop in 30 bars, then 35 bars of narrow, slightly *upward* drift — only 8.2% wide, recovering just 32.5% of the fall, on 0.94× the pole's volume. The upward tilt is what makes it a bear flag rather than a bottom: a real reversal comes with expanding volume, and this pause has none."
+    },
+    {
+      "id": "pd-v-1188",
+      "symbol": "V",
+      "startIdx": 1188,
+      "endIdx": 1252,
+      "answer": "double-top",
+      "distractors": [
+        "head-and-shoulders",
+        "rising-wedge",
+        "uptrend"
+      ],
+      "explain": "Two peaks 21 bars apart at within 0.75% of the same price, separated by a trough 19.7% below them, and then a fall of 29.0% that closed below the middle trough — the neckline break that confirms the pattern. Twice rejected at one price means the buyers who were willing to pay it are used up; the neckline is where that verdict becomes tradeable."
+    },
+    {
+      "id": "pd-v-1872",
+      "symbol": "V",
+      "startIdx": 1872,
+      "endIdx": 1968,
+      "answer": "double-bottom",
+      "distractors": [
+        "cup-and-handle",
+        "downtrend",
+        "inverse-head-and-shoulders"
+      ],
+      "explain": "Two troughs 40 bars apart within 0.25% of each other, split by a rally 17.9% high, then a 21.5% advance that closed above that middle peak — the neckline break that confirms it. The second test failing to make a new low is the tell: sellers had their chance at that price and could not push through."
+    },
+    {
+      "id": "pd-wmt-80",
+      "symbol": "WMT",
+      "startIdx": 80,
+      "endIdx": 128,
+      "answer": "ascending-triangle",
+      "distractors": [
+        "breakout",
+        "consolidation",
+        "symmetrical-triangle"
+      ],
+      "explain": "A flat ceiling and a rising floor: 4 touches of the same resistance level and 5 touches of a rising support line, alternating 7 times, with the gap between them closing by 69.0%. Buyers keep paying up while sellers hold one price — the shape is a coiled spring, usually resolving upward, but the flat side must be touched at least three times or it is just a range."
+    },
+    {
+      "id": "pd-wmt-1268",
+      "symbol": "WMT",
+      "startIdx": 1268,
+      "endIdx": 1316,
+      "answer": "bull-flag",
+      "distractors": [
+        "consolidation",
+        "rising-wedge",
+        "uptrend"
+      ],
+      "explain": "A 19.0% pole in 22 bars, then 27 bars of tight drift: the whole flag is only 8.1% wide, it gave back just 44.8% of the pole, and volume in the flag ran at 0.93× the pole's. Falling volume during the pause is the signature — nobody is selling, they are waiting. A drift that retraces more than half the pole is not a flag any more."
+    },
+    {
+      "id": "pd-wmt-1368",
+      "symbol": "WMT",
+      "startIdx": 1368,
+      "endIdx": 1488,
+      "answer": "breakout",
+      "distractors": [
+        "bull-flag",
+        "cup-and-handle",
+        "uptrend"
+      ],
+      "explain": "The first 79 bars are a 11.3%-wide box; then price closes clean through the ceiling and finishes 8.1% above it, on volume running 1.2× the base's average. The volume is what separates a breakout from a fakeout: a real break needs new buyers, and their footprint is the volume spike. A break on quiet volume is the one that gets sold back into the range."
+    },
+    {
+      "id": "pd-xom-680",
+      "symbol": "XOM",
+      "startIdx": 680,
+      "endIdx": 728,
+      "answer": "falling-wedge",
+      "distractors": [
+        "consolidation",
+        "double-bottom",
+        "symmetrical-triangle"
+      ],
+      "explain": "Both boundaries fall, but the ceiling falls faster than the floor, contracting the range 63.6% over 3 upper and 6 lower touches with 5 alternations. Selling is losing momentum even as price slips — the classic bullish-reversal reading. The trap is calling every downtrend a falling wedge: without containment and repeated touches on both lines there is no wedge, just a decline."
+    },
+    {
+      "id": "pd-xom-1456",
+      "symbol": "XOM",
+      "startIdx": 1456,
+      "endIdx": 1504,
+      "answer": "inverse-head-and-shoulders",
+      "distractors": [
+        "double-bottom",
+        "downtrend",
+        "support-bounce"
+      ],
+      "explain": "The bottoming mirror: a trough, a deeper head, then a second trough level with the first (within 4.1%), with a neckline across the two intervening peaks. Price has since risen 35.8% off the head and closed above the neckline, confirming the pattern. The right shoulder failing to make a new low is the evidence that the selling is done."
+    },
+    {
+      "id": "pd-xom-1620",
+      "symbol": "XOM",
+      "startIdx": 1620,
+      "endIdx": 1692,
+      "answer": "head-and-shoulders",
+      "distractors": [
+        "consolidation",
+        "rising-wedge",
+        "symmetrical-triangle"
+      ],
+      "explain": "Three peaks: a shoulder, a higher head, then a second shoulder back at the first one's level (they match to 1.6%). The two troughs between them line up into a neckline, and price has since fallen 26.3% from the head, closing below that neckline — the confirmation. It marks a failed attempt to keep making higher highs: the right shoulder is the rally that could not."
+    },
+    {
+      "id": "pd-xom-1920",
+      "symbol": "XOM",
+      "startIdx": 1920,
+      "endIdx": 2028,
+      "answer": "cup-and-handle",
+      "distractors": [
+        "bull-flag",
+        "inverse-head-and-shoulders",
+        "uptrend"
+      ],
+      "explain": "A rounded 23.2%-deep base spread over 77 bars — note how much time price spends near the bottom, which is what makes it a cup and not a V — recovering to the old rim, followed by a 31-bar handle that drifts back only 9.6%. The shallow handle is the point: it shakes out the last impatient holders without undoing the repair work of the cup."
+    }
+  ],
+  "whatnext": [
+    {
+      "id": "wn-aapl-307",
+      "symbol": "AAPL",
+      "cutoffIdx": 307,
+      "horizon": 10
+    },
+    {
+      "id": "wn-aapl-1922",
+      "symbol": "AAPL",
+      "cutoffIdx": 1922,
+      "horizon": 10
+    },
+    {
+      "id": "wn-amzn-1161",
+      "symbol": "AMZN",
+      "cutoffIdx": 1161,
+      "horizon": 10
+    },
+    {
+      "id": "wn-amzn-1795",
+      "symbol": "AMZN",
+      "cutoffIdx": 1795,
+      "horizon": 10
+    },
+    {
+      "id": "wn-amzn-1902",
+      "symbol": "AMZN",
+      "cutoffIdx": 1902,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ba-215",
+      "symbol": "BA",
+      "cutoffIdx": 215,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ba-1487",
+      "symbol": "BA",
+      "cutoffIdx": 1487,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ba-1993",
+      "symbol": "BA",
+      "cutoffIdx": 1993,
+      "horizon": 10
+    },
+    {
+      "id": "wn-bac-591",
+      "symbol": "BAC",
+      "cutoffIdx": 591,
+      "horizon": 10
+    },
+    {
+      "id": "wn-bac-968",
+      "symbol": "BAC",
+      "cutoffIdx": 968,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cat-260",
+      "symbol": "CAT",
+      "cutoffIdx": 260,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cat-1946",
+      "symbol": "CAT",
+      "cutoffIdx": 1946,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cost-191",
+      "symbol": "COST",
+      "cutoffIdx": 191,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cost-553",
+      "symbol": "COST",
+      "cutoffIdx": 553,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cvx-1817",
+      "symbol": "CVX",
+      "cutoffIdx": 1817,
+      "horizon": 10
+    },
+    {
+      "id": "wn-cvx-2088",
+      "symbol": "CVX",
+      "cutoffIdx": 2088,
+      "horizon": 10
+    },
+    {
+      "id": "wn-dis-456",
+      "symbol": "DIS",
+      "cutoffIdx": 456,
+      "horizon": 10
+    },
+    {
+      "id": "wn-dis-571",
+      "symbol": "DIS",
+      "cutoffIdx": 571,
+      "horizon": 10
+    },
+    {
+      "id": "wn-goog-553",
+      "symbol": "GOOG",
+      "cutoffIdx": 553,
+      "horizon": 10
+    },
+    {
+      "id": "wn-goog-1060",
+      "symbol": "GOOG",
+      "cutoffIdx": 1060,
+      "horizon": 10
+    },
+    {
+      "id": "wn-hd-1016",
+      "symbol": "HD",
+      "cutoffIdx": 1016,
+      "horizon": 10
+    },
+    {
+      "id": "wn-hd-1458",
+      "symbol": "HD",
+      "cutoffIdx": 1458,
+      "horizon": 10
+    },
+    {
+      "id": "wn-jnj-1194",
+      "symbol": "JNJ",
+      "cutoffIdx": 1194,
+      "horizon": 10
+    },
+    {
+      "id": "wn-jnj-1600",
+      "symbol": "JNJ",
+      "cutoffIdx": 1600,
+      "horizon": 10
+    },
+    {
+      "id": "wn-jpm-397",
+      "symbol": "JPM",
+      "cutoffIdx": 397,
+      "horizon": 10
+    },
+    {
+      "id": "wn-jpm-2182",
+      "symbol": "JPM",
+      "cutoffIdx": 2182,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ko-1145",
+      "symbol": "KO",
+      "cutoffIdx": 1145,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ko-1413",
+      "symbol": "KO",
+      "cutoffIdx": 1413,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ma-594",
+      "symbol": "MA",
+      "cutoffIdx": 594,
+      "horizon": 10
+    },
+    {
+      "id": "wn-ma-1309",
+      "symbol": "MA",
+      "cutoffIdx": 1309,
+      "horizon": 10
+    },
+    {
+      "id": "wn-meta-201",
+      "symbol": "META",
+      "cutoffIdx": 201,
+      "horizon": 10
+    },
+    {
+      "id": "wn-meta-2301",
+      "symbol": "META",
+      "cutoffIdx": 2301,
+      "horizon": 10
+    },
+    {
+      "id": "wn-msft-903",
+      "symbol": "MSFT",
+      "cutoffIdx": 903,
+      "horizon": 10
+    },
+    {
+      "id": "wn-msft-1005",
+      "symbol": "MSFT",
+      "cutoffIdx": 1005,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nflx-398",
+      "symbol": "NFLX",
+      "cutoffIdx": 398,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nflx-1343",
+      "symbol": "NFLX",
+      "cutoffIdx": 1343,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nflx-2184",
+      "symbol": "NFLX",
+      "cutoffIdx": 2184,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nvda-444",
+      "symbol": "NVDA",
+      "cutoffIdx": 444,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nvda-505",
+      "symbol": "NVDA",
+      "cutoffIdx": 505,
+      "horizon": 10
+    },
+    {
+      "id": "wn-nvda-1444",
+      "symbol": "NVDA",
+      "cutoffIdx": 1444,
+      "horizon": 10
+    },
+    {
+      "id": "wn-pfe-1898",
+      "symbol": "PFE",
+      "cutoffIdx": 1898,
+      "horizon": 10
+    },
+    {
+      "id": "wn-pfe-2414",
+      "symbol": "PFE",
+      "cutoffIdx": 2414,
+      "horizon": 10
+    },
+    {
+      "id": "wn-pg-469",
+      "symbol": "PG",
+      "cutoffIdx": 469,
+      "horizon": 10
+    },
+    {
+      "id": "wn-pg-2487",
+      "symbol": "PG",
+      "cutoffIdx": 2487,
+      "horizon": 10
+    },
+    {
+      "id": "wn-qqq-199",
+      "symbol": "QQQ",
+      "cutoffIdx": 199,
+      "horizon": 10
+    },
+    {
+      "id": "wn-qqq-1932",
+      "symbol": "QQQ",
+      "cutoffIdx": 1932,
+      "horizon": 10
+    },
+    {
+      "id": "wn-spy-956",
+      "symbol": "SPY",
+      "cutoffIdx": 956,
+      "horizon": 10
+    },
+    {
+      "id": "wn-spy-2220",
+      "symbol": "SPY",
+      "cutoffIdx": 2220,
+      "horizon": 10
+    },
+    {
+      "id": "wn-tsla-274",
+      "symbol": "TSLA",
+      "cutoffIdx": 274,
+      "horizon": 10
+    },
+    {
+      "id": "wn-tsla-900",
+      "symbol": "TSLA",
+      "cutoffIdx": 900,
+      "horizon": 10
+    },
+    {
+      "id": "wn-tsla-2410",
+      "symbol": "TSLA",
+      "cutoffIdx": 2410,
+      "horizon": 10
+    },
+    {
+      "id": "wn-unh-1594",
+      "symbol": "UNH",
+      "cutoffIdx": 1594,
+      "horizon": 10
+    },
+    {
+      "id": "wn-unh-2281",
+      "symbol": "UNH",
+      "cutoffIdx": 2281,
+      "horizon": 10
+    },
+    {
+      "id": "wn-v-1296",
+      "symbol": "V",
+      "cutoffIdx": 1296,
+      "horizon": 10
+    },
+    {
+      "id": "wn-v-1780",
+      "symbol": "V",
+      "cutoffIdx": 1780,
+      "horizon": 10
+    },
+    {
+      "id": "wn-v-2173",
+      "symbol": "V",
+      "cutoffIdx": 2173,
+      "horizon": 10
+    },
+    {
+      "id": "wn-wmt-518",
+      "symbol": "WMT",
+      "cutoffIdx": 518,
+      "horizon": 10
+    },
+    {
+      "id": "wn-wmt-2211",
+      "symbol": "WMT",
+      "cutoffIdx": 2211,
+      "horizon": 10
+    },
+    {
+      "id": "wn-xom-182",
+      "symbol": "XOM",
+      "cutoffIdx": 182,
+      "horizon": 10
+    },
+    {
+      "id": "wn-xom-1323",
+      "symbol": "XOM",
+      "cutoffIdx": 1323,
+      "horizon": 10
+    }
+  ]
+}

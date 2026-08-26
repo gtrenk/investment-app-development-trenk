@@ -237,6 +237,28 @@ export interface WhatNextDrillDef {
   horizon: number
 }
 
+/** Which dataset a set of drill windows was curated against. */
+export type DrillWindowSource = 'synthetic' | 'stooq'
+
+/**
+ * The whole chart-drill catalogue, as shipped in
+ * `public/data/drills/windows.json` and written by `scripts/curate-windows.mjs`.
+ *
+ * Windows are index ranges into the bundled series, so they are only valid for
+ * the dataset they were curated against — which is why they travel *with* the
+ * data rather than being compiled into the bundle. `generatedAt` is the newest
+ * bar in that dataset, not a wall-clock stamp: the curator has to be
+ * reproducible, and a build clock would put a diff in every refresh.
+ */
+export interface DrillWindows {
+  version: number
+  source: DrillWindowSource
+  /** ISO timestamp of the newest bar in the dataset these were curated from. */
+  generatedAt: string
+  patterns: PatternDrillDef[]
+  whatnext: WhatNextDrillDef[]
+}
+
 export type DrillKind = 'pattern' | 'whatnext' | 'financials'
 
 export interface DrillResult {
@@ -356,4 +378,92 @@ export interface FinDrillDef {
   answerIdx: 0 | 1 | 2 | 3
   /** Worked solution: the real arithmetic, plus what each distractor got wrong. */
   explain: string
+}
+
+// ── Case studies ─────────────────────────────────────────────────────────────
+
+/** `'c1'` … `'c6'` — the authored order is also the unlock order. */
+export type CaseId = string
+
+/**
+ * A page of the analyst's narrative: what the filing says, what to notice,
+ * what the number just computed actually means.
+ *
+ * `statementIds` are `FinStatementSnapshot.id` values, at most two, rendered as
+ * a collapsible `StatementTable` above the prose. Two ids is how a case shows
+ * one company across two fiscal years — the snapshot shape holds a single
+ * period, so a trend is expressed as two snapshots side by side.
+ */
+export interface CaseReadStep {
+  kind: 'read'
+  md: string
+  statementIds: string[]
+}
+
+/** A judgement call: what does this reading mean? Never arithmetic. */
+export interface CaseQuestionStep {
+  kind: 'question'
+  item: QuizItem
+  statementIds: string[]
+}
+
+/**
+ * Compute one figure from the statements on screen.
+ *
+ * Multiple choice for the same reason the financials drills are (see
+ * `FinDrillDef`): distractors built from the specific miscalculations a learner
+ * makes test the formula, where a numeric keypad only tests arithmetic.
+ * `formulaHint` is shown next to the question — the case is not a memory test
+ * of which line goes on top, it is practice at reading a real statement.
+ */
+export interface CaseCalcStep {
+  kind: 'calc'
+  item: QuizItem
+  statementIds: string[]
+  /** e.g. `'Inventory turnover = COGS ÷ inventory'`. */
+  formulaHint: string
+}
+
+/**
+ * Free writing, saved into case progress and shown back on the completion
+ * screen next to the model analysis. Nothing is graded: the value is that the
+ * learner commits to a view *before* reading what the case concludes.
+ */
+export interface CaseThesisStep {
+  kind: 'thesis'
+  prompts: string[]
+}
+
+export type CaseStep = CaseReadStep | CaseQuestionStep | CaseCalcStep | CaseThesisStep
+
+export interface CaseVerdict {
+  /** The one-paragraph decision — buy, pass, or watch, and why. */
+  md: string
+  /** The Unit 5 ten-point health checklist score the model analysis reaches. */
+  checklistScore: number
+}
+
+/**
+ * One guided end-to-end company analysis: read the statements → compute the
+ * ratios → judge the quality → value it → make the call.
+ *
+ * The bridge between knowing the material and being able to do the work, so a
+ * case is deliberately long-form (8–12 steps) and always ends with a `read`
+ * step holding the model analysis, followed by the learner's own answers and
+ * thesis on the completion screen.
+ */
+export interface CaseStudy {
+  id: CaseId
+  title: string
+  /** One line for the case list — the question the case actually asks. */
+  blurb: string
+  /**
+   * The company under analysis: a `FinStatementSnapshot.id` from
+   * `public/data/financials/companies.json`, or an inline snapshot for a case
+   * that needs figures no drill uses.
+   */
+  company: string | FinStatementSnapshot
+  intro: string
+  steps: CaseStep[]
+  verdict: CaseVerdict
 }
