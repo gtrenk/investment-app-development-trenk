@@ -282,9 +282,10 @@ sandbox this was built in cannot reach market-data hosts.
 plain outbound internet, so it does the fetch this sandbox never could:
 
 1. `node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000` — ~10 years of
-   daily bars for all 27 symbols, one polite request at a time. A few flaky
-   tickers are tolerated (their committed bars are kept, so the universe never
-   shrinks); a truncated history is rejected outright.
+   daily bars for all 27 symbols, one polite request at a time — Stooq first,
+   Yahoo for any symbol Stooq will not serve. A few flaky tickers are tolerated
+   (their committed bars are kept, so the universe never shrinks); a truncated
+   history is rejected outright.
 2. `node scripts/validate-data.mjs` — manifest ↔ files, OHLC invariants,
    strictly increasing timestamps, ≥ 2 000 bars per symbol.
 3. `node scripts/curate-windows.mjs` — every drill window re-derived from the new
@@ -298,19 +299,24 @@ The same workflow runs itself at 06:00 UTC on the 1st of each month
 with the default `GITHUB_TOKEN` as `github-actions[bot]`). A `refresh-data`
 concurrency group stops two runs from stacking.
 
-### By hand, on a network that can reach Stooq
+### By hand, on a network with outbound access
 
 ```bash
-node scripts/fetch-data.mjs                  # 27 symbols, ~10 years, from Stooq
+node scripts/fetch-data.mjs                  # 27 symbols, ~10 years
 node scripts/fetch-data.mjs --symbols=AAPL,SPY --years=5
+node scripts/fetch-data.mjs --provider=yahoo # skip Stooq entirely
+node scripts/fetch-data.mjs --help
 node scripts/validate-data.mjs --expect-symbols=27
 node scripts/curate-windows.mjs --report     # rebuild data/drills/windows.json
 npm test && npm run build
 ```
 
-`manifest.generated` flips from `synthetic` to `stooq`, and so does
-`source` in `public/data/drills/windows.json`. Commit the refreshed
-`public/data/` — it is part of the app, not a build artifact.
+`manifest.generated` flips from `synthetic` to `stooq`, and so does `source` in
+`public/data/drills/windows.json`. `generated` names the *pipeline*, not the
+host: which provider actually answered is recorded per symbol in
+`manifest.symbols[].source` and rolled up in `manifest.providers`, so a refresh
+that ran entirely off the Yahoo fallback shows up in the diff. Commit the
+refreshed `public/data/` — it is part of the app, not a build artifact.
 
 Before trusting the new windows, look at some:
 
@@ -331,9 +337,18 @@ wrong). The detectors are strict, but "strict" is a claim about arithmetic.
 - **Class coverage changes.** On synthetic bars several pattern classes find few
   or no honest instances and ship empty (they remain distractors). Real market
   data should fill them in — `--report` prints the per-class yield.
-- Stooq rate-limits. "Exceeded the daily hits limit" comes back as HTTP 200 with
-  that text as the body; the script reports it per symbol and retries with
-  backoff. If a whole run is rate-limited, re-run the workflow the next day.
+- **Stooq blocks datacenter IPs.** The first live workflow run got a JavaScript
+  anti-bot page (HTTP 200, HTML body) for all 27 symbols. The fetcher now sends
+  browser-like headers, recognises that page, gives up on it after one retry
+  instead of backing off through three, and falls through to Yahoo. If both
+  providers refuse, every symbol keeps its committed bars and the run fails on
+  the failure budget rather than shipping a broken dataset.
+- Stooq also rate-limits: "Exceeded the daily hits limit" comes back as HTTP 200
+  with that text as the body. Same handling — reported per symbol, then Yahoo.
+- **Yahoo's raw OHLC is what gets stored**, not `adjclose`. A candle has to be
+  the price that actually traded, and adjusted history is rewritten by every
+  later dividend — which would shift every curated drill window on every
+  refresh, producing a diff each month whether or not a new bar arrived.
 
 The financial statements in `public/data/financials/companies.json` are
 **fictional by design** and are not touched by any fetch script.

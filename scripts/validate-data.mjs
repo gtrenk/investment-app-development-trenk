@@ -26,6 +26,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 /** A series shorter than this cannot carry the drill windows. */
 const DEFAULT_MIN_BARS = 2000
 
+/** Per-symbol provenance `scripts/fetch-data.mjs` records in the manifest. */
+const PROVIDERS = ['stooq', 'yahoo', 'kept']
+
 function parseArgs(argv) {
   const opts = { data: join(ROOT, 'public', 'data'), minBars: DEFAULT_MIN_BARS, expectSymbols: 0 }
   for (const arg of argv) {
@@ -77,6 +80,13 @@ function main() {
   if (!['synthetic', 'stooq'].includes(manifest.generated)) {
     problems.push(`manifest.generated is '${manifest.generated}', expected 'synthetic' or 'stooq'`)
   }
+  // `generated` names the pipeline; `symbols[].source` names the host that
+  // actually answered for each symbol, and is absent on synthetic data.
+  for (const entry of manifest.symbols) {
+    if (entry.source !== undefined && !PROVIDERS.includes(entry.source)) {
+      problems.push(`${entry.symbol}: unknown source '${entry.source}'`)
+    }
+  }
   if (expectSymbols && manifest.symbols.length !== expectSymbols) {
     problems.push(`manifest lists ${manifest.symbols.length} symbols, expected ${expectSymbols}`)
   }
@@ -113,6 +123,16 @@ function main() {
     `✓ ${manifest.symbols.length} ${manifest.generated} series in ${data} — ` +
     `${Math.min(...bars)}…${Math.max(...bars)} bars each, all invariants hold`,
   )
+
+  // Surface the provider mix: a refresh that ran entirely off the fallback, or
+  // that kept most of last month's bars, is a healthy-looking run worth a look.
+  const counts = {}
+  for (const entry of manifest.symbols) if (entry.source) counts[entry.source] = (counts[entry.source] ?? 0) + 1
+  const mix = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ')
+  if (mix) console.log(`  sources: ${mix}`)
+  if (counts.kept >= manifest.symbols.length / 2) {
+    console.warn(`  ⚠ ${counts.kept} of ${manifest.symbols.length} symbols kept their previous bars — the fetch mostly failed.`)
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

@@ -32,7 +32,7 @@ Putting it on a real URL — static hosting, the quote proxy, real market data, 
 | `npm test` | Vitest suites for all core engines |
 | `npm run e2e` | Playwright end-to-end tests (PWA/offline/flows) |
 | `node scripts/generate-data.mjs` | Regenerate the bundled synthetic chart data (deterministic) |
-| `node scripts/fetch-data.mjs` | **Replace synthetic data with real Stooq history** (needs network access to stooq.com) |
+| `node scripts/fetch-data.mjs` | **Replace synthetic data with real history** — Stooq, falling back to Yahoo (needs outbound network) |
 | `node scripts/validate-data.mjs` | Gate the dataset: manifest ↔ files, OHLC invariants, minimum bar count |
 | `node scripts/curate-windows.mjs --report` | Re-derive every drill window from `public/data` and print the per-class yield |
 | `node scripts/render-windows.mjs --n=15` | Render a sample of curated windows to PNG for an eyeball check |
@@ -121,11 +121,18 @@ windows they play from `public/data/drills/windows.json`.
 
 **Refreshing with real market data is one click.** Actions → **Refresh market
 data** → *Run workflow*. A GitHub runner has the outbound access this project's
-build sandbox does not, so it fetches ~10 years of real daily bars from Stooq,
-re-curates every drill window against them, runs the content tests and commits
-to `main` — which triggers the Pages deploy. The same workflow runs on its own
-at 06:00 UTC on the 1st of each month, and commits nothing at all when nothing
-changed. See `.github/workflows/refresh-data.yml`.
+build sandbox does not, so it fetches ~10 years of real daily bars (Stooq
+first, Yahoo as the fallback), re-curates every drill window against them, runs
+the content tests and commits to `main` — which triggers the Pages deploy. The
+same workflow runs on its own at 06:00 UTC on the 1st of each month, and commits
+nothing at all when nothing changed. See `.github/workflows/refresh-data.yml`.
+
+Two providers because one was not enough: Stooq serves a JavaScript anti-bot
+challenge to GitHub's datacenter IPs, which is exactly what the first live run
+hit. The fetcher recognises that page, stops retrying it and asks Yahoo instead;
+`public/data/manifest.json` records per symbol which host actually answered
+(`stooq` / `yahoo` / `kept`, the last meaning the previous bars were carried
+forward because both failed).
 
 The committed data is **synthetic but realistic** (a seeded regime-switching
 model with fat tails, `scripts/generate-data.mjs`) so the whole pipeline builds,
