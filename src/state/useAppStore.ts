@@ -57,6 +57,8 @@ import { isGoalMet, newStreakState, recordGoalMet } from '@core/gamification/str
 import { evaluateBadges } from '@core/gamification/badges'
 import { STORAGE_KEYS, createMemoryStorage } from '@core/storage/adapter'
 import type { StorageAdapter } from '@core/storage/adapter'
+import { defaultSettings, sanitizeSettings } from '@core/settings'
+import type { ReadAloudSettings, Settings } from '@core/settings'
 import { activeProfileStorage } from './profiles'
 import { ALL_UNITS, getLesson } from '@content/units'
 
@@ -274,6 +276,8 @@ export interface AppState {
   openOrders: LimitOrder[]
   /** Starred symbols, in the order they were starred. */
   watchlist: string[]
+  /** Per-profile preferences. Read-aloud lives here; see @core/settings. */
+  settings: Settings
   pendingCelebrations: Celebration[]
 
   /**
@@ -296,6 +300,8 @@ export interface AppState {
   ensureBenchmark: (spyPrice: number) => void
   snapshotToday: (prices: PriceMap, spySeries?: OhlcvSeries | null) => void
   dismissCelebration: () => void
+  /** Patch the read-aloud preference and save it. Off is the default. */
+  setReadAloud: (patch: Partial<ReadAloudSettings>) => void
   resetAll: () => Promise<void>
 }
 
@@ -380,6 +386,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   portfolio: newPortfolio(),
   openOrders: [],
   watchlist: [],
+  settings: defaultSettings(),
   pendingCelebrations: [],
 
   async hydrate(force = false) {
@@ -387,7 +394,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Point every read and write below at the active profile's namespace. The
     // keys the store asks for never change — only where they land.
     storage = await activeProfileStorage()
-    const [progress, srs, game, drills, portfolio, orders, watchlist] = await Promise.all([
+    const [progress, srs, game, drills, portfolio, orders, watchlist, settings] = await Promise.all([
       storage.get<ProgressState>(STORAGE_KEYS.progress),
       storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
       storage.get<GameState>(STORAGE_KEYS.game),
@@ -395,6 +402,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       storage.get<PortfolioState>(STORAGE_KEYS.portfolio),
       storage.get<LimitOrder[]>(STORAGE_KEYS.orders),
       storage.get<string[]>(STORAGE_KEYS.watchlist),
+      storage.get<unknown>(STORAGE_KEYS.settings),
     ])
     set({
       progress: { ...emptyProgress(), ...(progress ?? {}) },
@@ -406,6 +414,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       portfolio: { ...newPortfolio(), ...(portfolio ?? {}) },
       openOrders: Array.isArray(orders) ? orders : [],
       watchlist: Array.isArray(watchlist) ? watchlist.filter((s) => typeof s === 'string') : [],
+      settings: sanitizeSettings(settings),
       ready: true,
     })
   },
@@ -737,6 +746,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   dismissCelebration() {
     set((s) => ({ pendingCelebrations: s.pendingCelebrations.slice(1) }))
+  },
+
+  /**
+   * Preferences, not progress: this is the one action in the file that neither
+   * awards XP nor touches the streak. It still goes through `write()`, so the
+   * choice follows the profile to its other devices like everything else.
+   */
+  setReadAloud(patch) {
+    const settings: Settings = {
+      ...get().settings,
+      readAloud: { ...get().settings.readAloud, ...patch },
+    }
+    set({ settings })
+    write(STORAGE_KEYS.settings, settings)
   },
 
   async resetAll() {

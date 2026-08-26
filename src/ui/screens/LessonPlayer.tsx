@@ -1,16 +1,30 @@
 // ─── Lesson player ───────────────────────────────────────────────────────────
 // One screen at a time: content blocks → quiz items → completion summary.
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { ContentBlock, QuizItem } from '@core/types'
 import { XP_LESSON, XP_QUIZ_ITEM } from '@core/gamification/xp'
+import { speakableFromMarkdown, speakableQuiz } from '@core/speech/text'
 import { getLesson, getUnit } from '@content/units'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { dayLogFor } from '@state/selectors'
 import { Markdown } from '@ui/components/Markdown'
 import { QuizChoice } from '@ui/components/QuizChoice'
 import type { ChoiceState } from '@ui/components/QuizChoice'
+import { isSupported, pause, resume, speak, stop, useSpeechState } from '@ui/speech/tts'
+
+// ── Listen mode ──────────────────────────────────────────────────────────────
+
+/**
+ * The beat between a block finishing and the page turning itself.
+ *
+ * Short enough that a hands-free lesson feels continuous, long enough that the
+ * last sentence has landed before the next one starts — and long enough that a
+ * listener who wants to stop the lesson turning has a moment to reach the
+ * pause button.
+ */
+const AUTO_ADVANCE_MS = 1000
 
 // ── Content blocks ───────────────────────────────────────────────────────────
 
@@ -151,6 +165,15 @@ export function LessonPlayer() {
   const game = useAppStore((s) => s.game)
   const wasComplete = useAppStore((s) => Boolean(s.progress.completedLessons[id]))
 
+  // Listen mode is the persisted preference itself, not a copy of it: the
+  // header button is a real settings toggle that happens to be where you need
+  // it. Turning it off in a lesson is remembered for the next one.
+  const listening = useAppStore((s) => s.settings.readAloud.enabled)
+  const rate = useAppStore((s) => s.settings.readAloud.rate)
+  const setReadAloud = useAppStore((s) => s.setReadAloud)
+  const speech = useSpeechState()
+  const [ttsAvailable] = useState(isSupported)
+
   const [step, setStep] = useState(0)
   const [firstTryCorrect, setFirstTryCorrect] = useState(0)
   const alreadyDone = useRef(wasComplete)
@@ -161,6 +184,117 @@ export function LessonPlayer() {
   const quizCount = lesson?.quiz.length ?? 0
   const totalSteps = blockCount + quizCount + 1
   const cardsMinted = useMemo(() => lesson?.cardSeeds.length ?? 0, [lesson])
+  const isSummary = step >= blockCount + quizCount
+
+  /** Runs exactly once, when the learner reaches the summary screen. */
+  const finish = () => {
+    if (!lesson || settled.current) return
+    settled.current = true
+    completeLesson(lesson.id)
+    // Quiz XP is idempotent per item id inside the store.
+    for (const itemId of firstTryIds.current) answerQuiz(itemId, true)
+  }
+
+  const advance = () => {
+    const next = step + 1
+    if (next >= blockCount + quizCount) finish()
+    setStep(next)
+  }
+
+  // ── Speech ────────────────────────────────────────────────────────────────
+  // One effect owns everything the voice says, keyed on "what is on screen".
+  // Manual Next/Back changes `step`, which re-runs it, which cancels whatever
+  // was mid-sentence and re-anchors on the new page — so the buttons keep
+  // working exactly as they did before listen mode existed.
+
+  const autoAdvance = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const advanceRef = useRef(advance)
+  useEffect(() => {
+    advanceRef.current = advance
+  })
+
+  const clearAutoAdvance = () => {
+    if (autoAdvance.current !== null) {
+      clearTimeout(autoAdvance.current)
+      autoAdvance.current = null
+    }
+  }
+
+  const summaryLine = () => {
+    if (!lesson) return ''
+    const quizXp = firstTryCorrect * XP_QUIZ_ITEM
+    const lessonXp = alreadyDone.current ? 0 : XP_LESSON
+    const cards = alreadyDone.current ? 0 : cardsMinted
+    return speakableFromMarkdown(
+      `Lesson complete. ${lesson.title}. ` +
+        `${lessonXp + quizXp} XP, with ${firstTryCorrect} of ${quizCount} quiz questions right first try. ` +
+        `${cards} ${cards === 1 ? 'card' : 'cards'} added to review.`,
+    )
+  }
+
+  useEffect(() => {
+    clearAutoAdvance()
+    // `ttsAvailable` matters as much as `listening`: the preference travels
+    // between devices over cloud sync, so a browser with no speech engine can
+    // arrive with it switched on. Without this guard `speak()` would report an
+    // instant "done" and the lesson would flip through itself in silence.
+    if (!listening || !ttsAvailable || !lesson) {
+      stop()
+      return
+    }
+
+    if (isSummary) {
+      speak([summaryLine()], { rate })
+      return
+    }
+
+    if (step < blockCount) {
+      speak([speakableFromMarkdown(lesson.blocks[step].md)], {
+        rate,
+        // The page turns itself only after the voice has actually finished,
+        // never on a timer that races it — a slow voice must not be cut off.
+        onDone: () => {
+          autoAdvance.current = setTimeout(() => {
+            autoAdvance.current = null
+            advanceRef.current()
+          }, AUTO_ADVANCE_MS)
+        },
+      })
+      return
+    }
+
+    // Quiz: read the question and the four options, then stop. Answering takes
+    // a deliberate tap, so auto-advancing here would either pick for the
+    // listener or strand them on a page they cannot answer without looking.
+    const spoken = speakableQuiz(lesson.quiz[step - blockCount])
+    speak([spoken.question, ...spoken.choices], { rate })
+    // Deliberately keyed on "what is on screen" and nothing else. `summaryLine`
+    // and `advance` are rebuilt every render and are reached through a ref
+    // instead; listing them here would restart the voice mid-sentence on any
+    // unrelated re-render (a quiz answer, an XP tick).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening, ttsAvailable, rate, step, isSummary, blockCount, lesson])
+
+  // Leaving the screen any way at all — Back, the tab bar, a hardware gesture —
+  // must not leave a voice talking to an empty room.
+  useEffect(() => {
+    return () => {
+      clearAutoAdvance()
+      stop()
+    }
+  }, [])
+
+  /** Read the verdict and the explanation the moment a choice is tapped. */
+  const speakFeedback = (item: QuizItem, correct: boolean) => {
+    if (!listening || !ttsAvailable) return
+    speak([correct ? 'Correct!' : 'Not quite.', speakableFromMarkdown(item.explain)], { rate })
+  }
+
+  const toggleListening = () => {
+    clearAutoAdvance()
+    if (listening) stop()
+    setReadAloud({ enabled: !listening })
+  }
 
   if (!lesson) {
     return (
@@ -175,23 +309,6 @@ export function LessonPlayer() {
   }
 
   const unit = getUnit(lesson.unitId)
-  const isSummary = step >= blockCount + quizCount
-
-  /** Runs exactly once, when the learner reaches the summary screen. */
-  const finish = () => {
-    if (settled.current) return
-    settled.current = true
-    completeLesson(lesson.id)
-    // Quiz XP is idempotent per item id inside the store.
-    for (const itemId of firstTryIds.current) answerQuiz(itemId, true)
-  }
-
-
-  const advance = () => {
-    const next = step + 1
-    if (next >= blockCount + quizCount) finish()
-    setStep(next)
-  }
 
   const exit = () => navigate('/learn')
 
@@ -219,6 +336,41 @@ export function LessonPlayer() {
             </p>
             <p className="truncate text-sm font-semibold text-slate-100">{lesson.title}</p>
           </div>
+
+          {/* Two controls rather than one that cycles: with the phone in a
+              cradle, "shush for a second" and "stop reading to me entirely"
+              must not be the same tap. Play/pause takes the prominent slot
+              because it is the one you reach for at a red light. */}
+          {ttsAvailable && listening && (speech.speaking || speech.paused) && (
+            <button
+              type="button"
+              data-testid="tts-playpause"
+              aria-label={speech.paused ? 'Resume reading' : 'Pause reading'}
+              onClick={() => (speech.paused ? resume() : pause())}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-700 text-base text-slate-200 active:bg-slate-800"
+            >
+              <span aria-hidden>{speech.paused ? '▶' : '⏸'}</span>
+            </button>
+          )}
+
+          {ttsAvailable && (
+            <button
+              type="button"
+              data-testid="tts-toggle"
+              aria-pressed={listening}
+              aria-label={listening ? 'Turn off read aloud' : 'Read this lesson aloud'}
+              onClick={toggleListening}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-base ${
+                listening
+                  ? `border-emerald-400/70 bg-emerald-400/10 text-emerald-300 ${
+                      speech.speaking && !speech.paused ? 'anim-listen' : ''
+                    }`
+                  : 'border-slate-700 text-slate-400 active:bg-slate-800'
+              }`}
+            >
+              <span aria-hidden>{listening ? '🔊' : '🔈'}</span>
+            </button>
+          )}
         </div>
         <div className="mt-2.5 flex gap-1" aria-hidden>
           {Array.from({ length: totalSteps }, (_, i) => (
@@ -298,6 +450,7 @@ export function LessonPlayer() {
                 firstTryIds.current.add(lesson.quiz[step - blockCount].id)
                 setFirstTryCorrect((n) => n + 1)
               }
+              speakFeedback(lesson.quiz[step - blockCount], right)
             }}
             onNext={advance}
           />

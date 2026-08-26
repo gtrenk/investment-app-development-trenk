@@ -113,6 +113,7 @@ export const SYNC_BLOB_KEYS = [
   'tq.v1.drills',
   'tq.v1.orders',
   'tq.v1.watchlist',
+  'tq.v1.settings',
   'profileMeta',
 ]
 

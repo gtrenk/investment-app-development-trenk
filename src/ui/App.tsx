@@ -1,7 +1,7 @@
 // ─── App shell & routing ─────────────────────────────────────────────────────
 
 import { useEffect } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { useProfilesStore } from '@state/profiles'
 import { initProfileSync } from '@state/sync'
@@ -20,6 +20,21 @@ import { PortfolioScreen } from './screens/PortfolioScreen'
 import { TradeScreen } from './screens/TradeScreen'
 import { PortfolioSync } from './data/usePortfolio'
 import { LimitOrderSync } from './data/useOrders'
+import { stop as stopSpeech } from './speech/tts'
+
+/**
+ * Speech is a tab-wide singleton, so somebody has to own "the screen changed —
+ * stop talking". Doing it here rather than in each screen's unmount covers the
+ * cases a screen cannot see: the tab bar, the browser Back gesture, a deep link
+ * from a notification. Its cleanup runs before the incoming screen's effects,
+ * so a route that starts reading immediately is not cut off by the exit of the
+ * one it replaced.
+ */
+function StopSpeechOnNavigate() {
+  const { pathname } = useLocation()
+  useEffect(() => stopSpeech, [pathname])
+  return null
+}
 
 function Splash() {
   return (
@@ -115,6 +130,7 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
+      <StopSpeechOnNavigate />
       <Routes>
         <Route path="/profiles" element={<ProfilePicker />} />
         <Route element={<TabLayout />}>

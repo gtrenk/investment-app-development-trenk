@@ -25,6 +25,12 @@ export const STORAGE_KEYS = {
   /** Watchlist — a plain array of symbols, in the order they were starred. */
   watchlist: 'tq.v1.watchlist',
   /**
+   * Per-profile preferences — currently just read-aloud. One extensible object
+   * rather than a key per toggle, so the next setting costs no storage surface
+   * and nothing to sync. See src/core/settings.ts for the shape.
+   */
+  settings: 'tq.v1.settings',
+  /**
    * Cloud-sync bookkeeping for this profile *on this device*: what each key's
    * last local change was and what the server has accepted. Profile-scoped so
    * deleting a profile takes it along, but never itself synced — see

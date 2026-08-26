@@ -2,15 +2,17 @@
 // The queue is snapshotted when the session starts so grading a card (which
 // pushes its due date into the future) cannot reshuffle the run in progress.
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CardId, CardSeed, Grade } from '@core/types'
 import { XP_PER_CARD, XP_REVIEW_SESSION } from '@core/gamification/xp'
+import { speakableCard } from '@core/speech/text'
 import { ALL_LESSONS } from '@content/units'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { todayQueue } from '@state/selectors'
 import { Flashcard } from '@ui/components/Flashcard'
 import { ProgressBar } from '@ui/components/ProgressBar'
+import { isSupported, speak, stop } from '@ui/speech/tts'
 
 /** cardId → seed, across every authored lesson. */
 const SEEDS: Map<CardId, CardSeed> = new Map(
@@ -44,6 +46,9 @@ export function ReviewScreen() {
   const gradeCard = useAppStore((s) => s.gradeCard)
   const finishReviewSession = useAppStore((s) => s.finishReviewSession)
 
+  const listening = useAppStore((s) => s.settings.readAloud.enabled)
+  const rate = useAppStore((s) => s.settings.readAloud.rate)
+
   const today = appClock.today()
   // Snapshot on first render only.
   const [session] = useState<CardId[]>(() => todayQueue(srs, today))
@@ -55,6 +60,27 @@ export function ReviewScreen() {
   const done = index >= session.length
   const currentId = session[index]
   const seed = currentId ? SEEDS.get(currentId) : undefined
+
+  /**
+   * Listen mode, review edition: the prompt is read when the card appears and
+   * the answer when it is turned over.
+   *
+   * Nothing here advances on its own, unlike the lesson player. Grading is a
+   * self-assessment — only the listener knows whether they actually recalled
+   * it — so the four buttons stay deliberate taps and the queue waits.
+   */
+  useEffect(() => {
+    if (!listening || !currentId || !isSupported()) {
+      stop()
+      return
+    }
+    const face = revealed
+      ? (seed?.back ?? 'This card’s content is no longer in the curriculum.')
+      : (seed?.front ?? currentId)
+    speak([speakableCard(face)], { rate })
+  }, [listening, rate, currentId, revealed, seed])
+
+  useEffect(() => stop, [])
 
   const nextDue = useMemo(() => {
     if (!done || session.length === 0) return null

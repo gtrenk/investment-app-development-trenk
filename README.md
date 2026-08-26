@@ -33,6 +33,21 @@ Putting it on a real URL — static hosting, the quote proxy, real market data, 
 | `node scripts/generate-data.mjs` | Regenerate the bundled synthetic chart data (deterministic) |
 | `node scripts/fetch-data.mjs` | **Replace synthetic data with real Stooq history** (run on your own network) |
 
+## Listen mode (read aloud)
+
+Optional, off by default. **Profile → ✏️ Edit → Read aloud** turns on
+text-to-speech for a profile and picks a speed (0.8×–1.5×); a 🔈 button in the
+lesson header toggles it without leaving the lesson. With it on, each content
+block is spoken through whatever the device is playing audio through — speaker,
+headphones, car Bluetooth — and the page turns itself a second after the voice
+finishes, so a whole lesson plays hands-free. Quiz questions are read out with
+their four options lettered A–D but never auto-advance: answering is a tap.
+Review cards read the prompt, then the answer once revealed.
+
+Uses the browser's own voice (`window.speechSynthesis`) — no network, no
+account, nothing installed. **Known platform limitation: iOS pauses web speech
+when the screen locks, so keep the screen on for long listens.**
+
 ## Sync across devices
 
 Each install holds up to five profiles, and a profile can follow you to another
@@ -67,11 +82,13 @@ src/core/       Pure TypeScript engines — no React, no DOM (portable to React 
   gamification/ XP/levels, streak state machine, declarative badges
   drills/       Drill selection, outcome grading, calibration stats
   market/       Series slicing/validation helpers
+  speech/       Markdown → speakable text (notation, bullets, cloze blanks)
   storage/      StorageAdapter interface + versioned keys
   sync/         Cloud-sync protocol (fetch injected) + the sync-code alphabet
 src/content/    Curriculum authored as typed data (units, drill windows)
 src/state/      Zustand store: engines ↔ IndexedDB ↔ UI glue
 src/ui/         React screens/components (the only layer that knows about the DOM)
+  speech/       window.speechSynthesis wrapper (chunking, voice, queue)
 ```
 
 Rule: `ui/` imports `core/`; `core/` never imports `ui/`. All date math flows through an injected `Clock` (`window.__TEST_CLOCK__` override in e2e tests).
