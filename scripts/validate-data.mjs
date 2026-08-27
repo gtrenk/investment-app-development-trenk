@@ -27,7 +27,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_MIN_BARS = 2000
 
 /** Per-symbol provenance `scripts/fetch-data.mjs` records in the manifest. */
-const PROVIDERS = ['stooq', 'yahoo', 'kept']
+const PROVIDERS = ['tiingo', 'stooq', 'yahoo', 'kept']
 
 function parseArgs(argv) {
   const opts = { data: join(ROOT, 'public', 'data'), minBars: DEFAULT_MIN_BARS, expectSymbols: 0 }

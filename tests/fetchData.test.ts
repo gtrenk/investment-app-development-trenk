@@ -1,16 +1,19 @@
 // Unit tests for the pure half of `scripts/fetch-data.mjs`.
 //
 // The HTTP calls cannot be exercised here — the sandbox's egress proxy returns
-// 403 for stooq.com and finance.yahoo.com alike — so everything that does not
-// touch the network is pinned down instead: URL construction, challenge
-// detection, the retry policy, both response parsers, and the year trim.
+// 403 for api.tiingo.com, stooq.com and finance.yahoo.com alike — so everything
+// that does not touch the network is pinned down instead: URL construction,
+// challenge detection, the retry and provider-order policies, all three
+// response parsers, and the year trim.
 //
-// This matters more than usual for the Yahoo path. It exists because the first
-// live run of the refresh workflow got an anti-bot HTML page back from Stooq
-// for all 27 symbols, and it has never been run against the live Yahoo endpoint
-// by anyone. These tests, driven by fixtures shaped like real payloads
-// (null-padded halts, market-open timestamps, a duplicated trailing session, an
-// error envelope), are the whole correctness story for it.
+// This matters more than usual for the two fallback paths, and most of all for
+// Tiingo. The provider chain is the way it is because of two live failures:
+// run 1 of the refresh workflow got an anti-bot HTML page from Stooq for all 27
+// symbols, and run 2 got HTTP 429 from Yahoo for all 27. Neither Yahoo nor
+// Tiingo has ever been exercised against its live endpoint by anyone. These
+// tests, driven by fixtures shaped like real payloads (null-padded halts,
+// market-open timestamps, a duplicated session, zero-volume days, out-of-order
+// rows, error envelopes), are the whole correctness story for them.
 //
 // The module is loaded through a computed specifier so `tsc` treats it as
 // `any` — `scripts/` is deliberately outside the TypeScript project.
@@ -30,6 +33,11 @@ interface OhlcvLike {
 
 let parseStooqCsv: (symbol: string, csv: string) => OhlcvLike
 let parseYahooChart: (symbol: string, payload: unknown) => OhlcvLike
+let parseTiingoDaily: (symbol: string, payload: unknown) => OhlcvLike
+let tiingoUrl: (symbol: string, years?: number, nowMs?: number) => string
+let tiingoStartDate: (years: number, nowMs?: number) => string
+let tiingoErrorDetail: (payload: unknown) => string | null
+let providerChain: (provider: string, hasKey: boolean) => string[]
 let trimToYears: (series: OhlcvLike, years: number) => OhlcvLike
 let stooqUrl: (symbol: string) => string
 let yahooUrl: (symbol: string, years?: number) => string
@@ -44,6 +52,11 @@ beforeAll(async () => {
   ;({
     parseStooqCsv,
     parseYahooChart,
+    parseTiingoDaily,
+    tiingoUrl,
+    tiingoStartDate,
+    tiingoErrorDetail,
+    providerChain,
     trimToYears,
     stooqUrl,
     yahooUrl,
@@ -234,6 +247,13 @@ describe('retryPlanFor', () => {
     const one = retryPlanFor('anti-bot', 1)
     const two = retryPlanFor('anti-bot', 2)
     expect(two.waitMs).toBe(one.waitMs)
+  })
+
+  it('never retries a rejected API key', () => {
+    // A bad key is not transient. Asked 27 times with exponential backoff it
+    // costs about four minutes to confirm what the first answer already said.
+    expect(retryPlanFor('AAPL: Tiingo rejected the API key — check TIINGO_API_KEY', 1).budget).toBe(0)
+    expect(retryPlanFor('AAPL: no Tiingo API key (set TIINGO_API_KEY)', 1).budget).toBe(0)
   })
 
   it('tolerates a missing message', () => {
@@ -441,6 +461,245 @@ describe('parseYahooChart', () => {
   it('names the symbol in every failure message', () => {
     for (const bad of ['not json', '', CHALLENGE_HTML]) {
       expect(() => parseYahooChart('ZZZZ', bad)).toThrow(/ZZZZ/)
+    }
+  })
+})
+
+// ─── Tiingo (the keyed provider) ─────────────────────────────────────────────
+
+/**
+ * Rows shaped like a real Tiingo end-of-day response: full `adj*` companions,
+ * a zero-volume half-day, and prices that need the invariant repair.
+ */
+function tiingoRows() {
+  return [
+    {
+      date: '2016-12-27T00:00:00.000Z',
+      close: 117.26, high: 117.8, low: 115.61, open: 115.8, volume: 18296855,
+      adjClose: 115.01, adjHigh: 115.54, adjLow: 113.42, adjOpen: 113.61, adjVolume: 18296855,
+      divCash: 0, splitFactor: 1,
+    },
+    {
+      date: '2016-12-28T00:00:00.000Z',
+      close: 116.76, high: 118.02, low: 116.2, open: 117.52, volume: 20905892,
+      adjClose: 114.52, adjHigh: 115.75, adjLow: 113.98, adjOpen: 115.27, adjVolume: 20905892,
+      divCash: 0, splitFactor: 1,
+    },
+    {
+      // A holiday half-session: real prices, no volume.
+      date: '2016-12-29T00:00:00.000Z',
+      close: 116.73, high: 117.11, low: 116.4, open: 116.45, volume: 0,
+      adjClose: 114.49, adjHigh: 114.86, adjLow: 114.16, adjOpen: 114.21, adjVolume: 0,
+      divCash: 0, splitFactor: 1,
+    },
+  ]
+}
+
+describe('tiingoStartDate / tiingoUrl', () => {
+  const NOW = Date.parse('2026-08-21T12:00:00Z')
+
+  it('asks for half a year more than the window it will trim to', () => {
+    // The trim needs a full window to cut down to, not one already a few
+    // sessions short.
+    const start = Date.parse(`${tiingoStartDate(10, NOW)}T00:00:00Z`)
+    const spanYears = (NOW - start) / (365.25 * 86400 * 1000)
+    expect(spanYears).toBeGreaterThan(10)
+    expect(spanYears).toBeLessThan(11)
+  })
+
+  it('builds the daily-prices URL with a lower-case ticker and JSON format', () => {
+    expect(tiingoUrl('AAPL', 10, NOW)).toBe(
+      `https://api.tiingo.com/tiingo/daily/aapl/prices?startDate=${tiingoStartDate(10, NOW)}&format=json`,
+    )
+  })
+
+  it('never puts the API key in the URL', () => {
+    // Tiingo accepts &token=, but a URL can reach a log line; the key goes in
+    // an Authorization header instead.
+    const url = tiingoUrl('AAPL', 10, NOW)
+    expect(url).not.toContain('token')
+    expect(url).not.toContain('apikey')
+  })
+
+  it('falls back to a ten-year window for a nonsense --years', () => {
+    expect(tiingoStartDate(0, NOW)).toBe(tiingoStartDate(10, NOW))
+    expect(tiingoStartDate(Number.NaN, NOW)).toBe(tiingoStartDate(10, NOW))
+  })
+})
+
+describe('tiingoErrorDetail', () => {
+  it('pulls the detail string out of an error envelope', () => {
+    expect(tiingoErrorDetail('{"detail":"Error: Invalid Token."}')).toBe('Error: Invalid Token.')
+    expect(tiingoErrorDetail({ detail: 'Error: Not permissioned.' })).toBe('Error: Not permissioned.')
+  })
+
+  it('returns null for a normal price array or anything unparseable', () => {
+    expect(tiingoErrorDetail(tiingoRows())).toBeNull()
+    expect(tiingoErrorDetail(JSON.stringify(tiingoRows()))).toBeNull()
+    expect(tiingoErrorDetail('not json')).toBeNull()
+    expect(tiingoErrorDetail(null)).toBeNull()
+    expect(tiingoErrorDetail({ detail: '   ' })).toBeNull()
+  })
+})
+
+describe('parseTiingoDaily', () => {
+  it('parses a price array into columnar arrays', () => {
+    const s = parseTiingoDaily('AAPL', tiingoRows())
+    expect(s.symbol).toBe('AAPL')
+    expect(s.interval).toBe('1d')
+    expect(s.t).toHaveLength(3)
+    expect(s.c).toEqual([117.26, 116.76, 116.73])
+    expect(s.o[0]).toBe(115.8)
+  })
+
+  it('accepts the raw response text as well as a parsed array', () => {
+    expect(parseTiingoDaily('AAPL', JSON.stringify(tiingoRows()))).toEqual(
+      parseTiingoDaily('AAPL', tiingoRows()),
+    )
+  })
+
+  it('floors ISO dates to UTC midnight, matching the other two providers', () => {
+    const s = parseTiingoDaily('AAPL', tiingoRows())
+    expect(s.t[0]).toBe(midnightUtc('2016-12-27'))
+    expect(s.t[0]).toBe(parseStooqCsv('AAPL', CSV).t[0])
+    expect(s.t[0]).toBe(parseYahooChart('AAPL', yahooPayload()).t[0])
+    for (const t of s.t) expect(t % 86400).toBe(0)
+  })
+
+  it('keeps a zero-volume session — a half-day is a real bar', () => {
+    const s = parseTiingoDaily('AAPL', tiingoRows())
+    expect(s.t).toHaveLength(3)
+    expect(s.v[2]).toBe(0)
+    expect(s.c[2]).toBe(116.73)
+  })
+
+  it('uses the raw OHLC, never the adj* companions', () => {
+    const s = parseTiingoDaily('AAPL', tiingoRows())
+    expect(s.c[0]).toBe(117.26)
+    expect(s.c[0]).not.toBe(115.01)
+    expect(s.o[0]).not.toBe(113.61)
+  })
+
+  it('sorts out-of-order rows rather than trusting the documented ordering', () => {
+    const shuffled = [tiingoRows()[2], tiingoRows()[0], tiingoRows()[1]]
+    const s = parseTiingoDaily('AAPL', shuffled)
+    expect(s.c).toEqual([117.26, 116.76, 116.73])
+    for (let i = 1; i < s.t.length; i++) expect(s.t[i]).toBeGreaterThan(s.t[i - 1])
+  })
+
+  it('drops a repeated date so timestamps stay strictly increasing', () => {
+    const dupes = [...tiingoRows(), tiingoRows()[1]]
+    const s = parseTiingoDaily('AAPL', dupes)
+    expect(s.t).toHaveLength(3)
+    for (let i = 1; i < s.t.length; i++) expect(s.t[i]).toBeGreaterThan(s.t[i - 1])
+  })
+
+  it('accepts a bare YYYY-MM-DD date as well as a full ISO timestamp', () => {
+    const rows = tiingoRows().map((r) => ({ ...r, date: r.date.slice(0, 10) }))
+    expect(parseTiingoDaily('AAPL', rows).t).toEqual(parseTiingoDaily('AAPL', tiingoRows()).t)
+  })
+
+  it('drops rows with unusable prices instead of emitting NaN', () => {
+    const rows = [...tiingoRows(), { date: '2016-12-30T00:00:00.000Z', open: null, high: null, low: null, close: null, volume: 5 }]
+    const s = parseTiingoDaily('AAPL', rows)
+    expect(s.t).toHaveLength(3)
+    for (const col of [s.o, s.h, s.l, s.c, s.v]) {
+      for (const x of col) expect(Number.isFinite(x)).toBe(true)
+    }
+  })
+
+  it('repairs OHLC invariants rather than trusting the feed', () => {
+    const rows = tiingoRows()
+    rows[0].high = 100 // below the close
+    rows[0].low = 200 // above the open
+    const s = parseTiingoDaily('AAPL', rows)
+    expect(s.h[0]).toBeGreaterThanOrEqual(Math.max(s.o[0], s.c[0]))
+    expect(s.l[0]).toBeLessThanOrEqual(Math.min(s.o[0], s.c[0]))
+  })
+
+  it('rounds prices to cents and volume to integers', () => {
+    const rows = tiingoRows()
+    rows[0].open = 1.23456
+    rows[0].close = 1.98765
+    rows[0].volume = 1234.7
+    const s = parseTiingoDaily('AAPL', rows)
+    expect(s.o[0]).toBe(1.23)
+    expect(s.c[0]).toBe(1.99)
+    expect(Number.isInteger(s.v[0])).toBe(true)
+  })
+
+  it('produces a series the year trim accepts unchanged in shape', () => {
+    const s = trimToYears(parseTiingoDaily('AAPL', tiingoRows()), 10)
+    for (const col of [s.o, s.h, s.l, s.c, s.v]) expect(col.length).toBe(s.t.length)
+  })
+
+  it('says plainly when the API key was rejected', () => {
+    // The operator has to be able to act on this: "HTTP 401" is not actionable,
+    // "check TIINGO_API_KEY" is.
+    for (const detail of ['Error: Invalid Token.', 'Error: Not permissioned for this API key']) {
+      expect(() => parseTiingoDaily('AAPL', { detail })).toThrow(/rejected the API key/)
+      expect(() => parseTiingoDaily('AAPL', { detail })).toThrow(/TIINGO_API_KEY/)
+    }
+  })
+
+  it('surfaces a non-key error envelope as-is', () => {
+    const payload = { detail: 'Error: Ticker aapl not found' }
+    expect(() => parseTiingoDaily('AAPL', payload)).toThrow(/Ticker aapl not found/)
+    expect(() => parseTiingoDaily('AAPL', payload)).not.toThrow(/rejected the API key/)
+  })
+
+  it('recognises an anti-bot page served in place of JSON', () => {
+    expect(() => parseTiingoDaily('AAPL', CHALLENGE_HTML)).toThrow(/anti-bot/)
+  })
+
+  it.each([
+    ['a non-JSON body', 'not json at all'],
+    ['an empty body', ''],
+    ['null', null],
+    ['an object instead of an array', { prices: [] }],
+    ['an empty array', []],
+    ['an array of junk', [1, 2, 3]],
+    ['rows with no usable prices', [{ date: '2016-12-27', open: 0, high: 0, low: 0, close: 0 }]],
+  ])('throws on %s', (_name, payload) => {
+    expect(() => parseTiingoDaily('AAPL', payload)).toThrow()
+  })
+
+  it('names the symbol in every failure message', () => {
+    for (const bad of ['not json', '', CHALLENGE_HTML, [], { detail: 'Error: Invalid Token.' }]) {
+      expect(() => parseTiingoDaily('ZZZZ', bad)).toThrow(/ZZZZ/)
+    }
+  })
+})
+
+// ─── Provider order ──────────────────────────────────────────────────────────
+
+describe('providerChain', () => {
+  it('puts Tiingo first when a key is available, keeping the others as backstops', () => {
+    // Keyless providers cost nothing to try and cover an expired key or an
+    // exhausted quota.
+    expect(providerChain('auto', true)).toEqual(['tiingo', 'stooq', 'yahoo'])
+  })
+
+  it('is unchanged from the pre-Tiingo behaviour when no key is set', () => {
+    expect(providerChain('auto', false)).toEqual(['stooq', 'yahoo'])
+  })
+
+  it('never includes Tiingo without a key', () => {
+    expect(providerChain('auto', false)).not.toContain('tiingo')
+  })
+
+  it('honours an explicit single provider either way', () => {
+    for (const hasKey of [true, false]) {
+      expect(providerChain('tiingo', hasKey)).toEqual(['tiingo'])
+      expect(providerChain('stooq', hasKey)).toEqual(['stooq'])
+      expect(providerChain('yahoo', hasKey)).toEqual(['yahoo'])
+    }
+  })
+
+  it('always tries every provider at most once', () => {
+    for (const hasKey of [true, false]) {
+      const chain = providerChain('auto', hasKey)
+      expect(new Set(chain).size).toBe(chain.length)
     }
   })
 })

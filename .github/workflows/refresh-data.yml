@@ -1,20 +1,30 @@
 name: Refresh market data
 
-# Pulls real daily bars from Stooq (falling back to Yahoo), re-curates the drill
-# windows against them, validates the result and commits to main. The Pages
-# workflow triggers on that push, so a successful run ends with the data live.
+# Pulls real daily bars (Tiingo, falling back to Stooq then Yahoo), re-curates
+# the drill windows against them, validates the result and commits to main. The
+# Pages workflow triggers on that push, so a successful run ends with the data
+# live.
 #
 # Why this lives in Actions rather than in the repo owner's terminal: the
-# sandbox this project was built in cannot reach either provider, and a monthly
+# sandbox this project was built in cannot reach any provider, and a monthly
 # manual chore is a chore nobody does. A GitHub-hosted runner has plain outbound
 # internet, so the fetch that has never run locally runs here.
 #
-# ⚠ The first live run of this workflow failed: Stooq serves a JavaScript
-#   anti-bot challenge to GitHub's datacenter IP ranges, so all 27 symbols came
-#   back as HTML instead of CSV. Nothing bad shipped — the failure budget and
-#   carry-forward held — and `scripts/fetch-data.mjs` now recognises that page,
-#   stops retrying it, and asks Yahoo instead. Which provider actually answered
-#   for each symbol is recorded in `public/data/manifest.json`.
+# ⚠ TWO LIVE RUNS FAILED BEFORE THIS NEEDED AN API KEY.
+#   Run 1: Stooq answered all 27 symbols with a JavaScript anti-bot page, which
+#   it serves to GitHub's datacenter IP ranges. Run 2, with a Yahoo fallback
+#   added: Yahoo answered HTTP 429 for all 27, same underlying reason. Nothing
+#   bad shipped either time — the failure budget and carry-forward held — but a
+#   keyless provider cannot be relied on from a datacenter.
+#
+#   So the fetch now prefers **Tiingo**, which is keyed and therefore does not
+#   care where the request comes from. The key lives in the repository secret
+#   TIINGO_API_KEY (Settings → Secrets and variables → Actions) and is passed
+#   to the step as an env var — never committed, never printed, and absent from
+#   the request URL. Without it the run falls back to the two keyless providers
+#   and will almost certainly fail; the step below warns about exactly that.
+#   Which provider actually answered per symbol is recorded in
+#   `public/data/manifest.json`.
 
 on:
   workflow_dispatch:
@@ -49,15 +59,35 @@ jobs:
 
       - run: npm ci
 
-      # ~27 symbols with a polite delay between them: a minute or two of wall
-      # clock, or a little more when Stooq blocks the runner and every symbol
-      # goes the long way round to Yahoo.
+      # A missing key is not fatal — the keyless providers still work from a
+      # laptop, and a run is allowed to try — but it is the single most likely
+      # reason for a CI failure here, so say so up front rather than leaving it
+      # to be inferred from 27 identical HTTP 429s.
+      #
+      # The test is on an env var rather than `if: secrets.… == ''` because the
+      # `secrets` context is not available in a step-level `if`; mapping it into
+      # `env` first is the supported way to branch on "is this secret set".
+      - name: Check for the Tiingo key
+        env:
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+        run: |
+          if [ -z "$TIINGO_API_KEY" ]; then
+            echo "::warning::TIINGO_API_KEY secret not set — falling back to keyless providers, which block CI IPs"
+          else
+            echo "TIINGO_API_KEY is set."
+          fi
+
+      # ~27 symbols with a polite delay between them: two or three minutes of
+      # wall clock, or a little more when a provider has to be given up on and
+      # every symbol goes the long way round.
       #
       # --max-failures=3 tolerates a few flaky tickers (the previously committed
       # bars are kept for those, so the universe never shrinks); --min-bars=2000
       # rejects a truncated history rather than letting it invalidate every
       # drill window curated against it.
-      - name: Fetch real bars (Stooq, falling back to Yahoo)
+      - name: Fetch real bars (Tiingo, falling back to Stooq then Yahoo)
+        env:
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
         run: node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000
 
       # Gate the dataset before anything is derived from it. Also prints which

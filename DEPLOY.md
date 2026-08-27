@@ -276,16 +276,45 @@ devices" for what that means in practice.
 The committed `public/data/` is **deterministic synthetic** OHLCV, because the
 sandbox this was built in cannot reach market-data hosts.
 
+### One-time: the Tiingo API key (~3 minutes)
+
+Do this once, before the first refresh.
+
+1. Sign up free at <https://www.tiingo.com>. The free tier covers 27 symbols
+   once a month many times over.
+2. Copy the token from **account → API → Token**.
+3. In the repo: **Settings → Secrets and variables → Actions → New repository
+   secret**. Name it `TIINGO_API_KEY`, paste the token, save.
+4. **Actions → Refresh market data → Run workflow.**
+
+The secret stays in GitHub. It is never committed, never echoed into the job
+log, and never placed in a request URL — Tiingo accepts `&token=` on the query
+string, but URLs leak into logs and error messages, so the fetcher sends an
+`Authorization: Token …` header instead.
+
+**Why a key at all.** Two live runs failed without one. Run 1 used Stooq: all 27
+symbols came back as a JavaScript anti-bot page, because Stooq challenges
+GitHub's datacenter IP ranges. Run 2 added a Yahoo fallback: all 27 came back
+HTTP 429, same underlying cause. Free keyless endpoints do not serve
+datacenters, and no amount of header-shaping changes that. Both keyless
+providers are still wired in behind Tiingo — they work fine from a laptop, and
+they cover an expired key or an exhausted quota — but they cannot carry CI.
+
+If the secret is missing the workflow does not fail: it emits a
+`::warning::`, runs the keyless chain, and (almost certainly) fails at the
+failure budget with the committed data untouched.
+
 ### The easy path: run the workflow
 
 **Actions → Refresh market data → Run workflow.** A GitHub-hosted runner has
 plain outbound internet, so it does the fetch this sandbox never could:
 
 1. `node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000` — ~10 years of
-   daily bars for all 27 symbols, one polite request at a time — Stooq first,
-   Yahoo for any symbol Stooq will not serve. A few flaky tickers are tolerated
-   (their committed bars are kept, so the universe never shrinks); a truncated
-   history is rejected outright.
+   daily bars for all 27 symbols, one polite request at a time. Providers are
+   tried in order: Tiingo (when `TIINGO_API_KEY` is set), then Stooq, then
+   Yahoo, per symbol, with each hand-off logged. A few flaky tickers are
+   tolerated (their committed bars are kept, so the universe never shrinks); a
+   truncated history is rejected outright.
 2. `node scripts/validate-data.mjs` — manifest ↔ files, OHLC invariants,
    strictly increasing timestamps, ≥ 2 000 bars per symbol.
 3. `node scripts/curate-windows.mjs` — every drill window re-derived from the new
@@ -302,9 +331,10 @@ concurrency group stops two runs from stacking.
 ### By hand, on a network with outbound access
 
 ```bash
+export TIINGO_API_KEY=…                      # optional locally, required in CI
 node scripts/fetch-data.mjs                  # 27 symbols, ~10 years
 node scripts/fetch-data.mjs --symbols=AAPL,SPY --years=5
-node scripts/fetch-data.mjs --provider=yahoo # skip Stooq entirely
+node scripts/fetch-data.mjs --provider=stooq # pin one provider, to see it fail
 node scripts/fetch-data.mjs --help
 node scripts/validate-data.mjs --expect-symbols=27
 node scripts/curate-windows.mjs --report     # rebuild data/drills/windows.json
@@ -314,9 +344,10 @@ npm test && npm run build
 `manifest.generated` flips from `synthetic` to `stooq`, and so does `source` in
 `public/data/drills/windows.json`. `generated` names the *pipeline*, not the
 host: which provider actually answered is recorded per symbol in
-`manifest.symbols[].source` and rolled up in `manifest.providers`, so a refresh
-that ran entirely off the Yahoo fallback shows up in the diff. Commit the
-refreshed `public/data/` — it is part of the app, not a build artifact.
+`manifest.symbols[].source` (`tiingo` / `stooq` / `yahoo` / `kept`) and rolled
+up in `manifest.providers`, so a refresh that ran entirely off a backstop shows
+up in the diff. Commit the refreshed `public/data/` — it is part of the app, not
+a build artifact.
 
 Before trusting the new windows, look at some:
 
@@ -337,18 +368,23 @@ wrong). The detectors are strict, but "strict" is a claim about arithmetic.
 - **Class coverage changes.** On synthetic bars several pattern classes find few
   or no honest instances and ship empty (they remain distractors). Real market
   data should fill them in — `--report` prints the per-class yield.
-- **Stooq blocks datacenter IPs.** The first live workflow run got a JavaScript
-  anti-bot page (HTTP 200, HTML body) for all 27 symbols. The fetcher now sends
-  browser-like headers, recognises that page, gives up on it after one retry
-  instead of backing off through three, and falls through to Yahoo. If both
-  providers refuse, every symbol keeps its committed bars and the run fails on
-  the failure budget rather than shipping a broken dataset.
+- **The keyless providers block datacenter IPs.** Stooq answers with a
+  JavaScript anti-bot page (HTTP 200, HTML body); Yahoo answers HTTP 429. The
+  fetcher sends browser-like headers to both, recognises that page for what it
+  is, gives up after one retry instead of backing off through three, and moves
+  to the next provider. If every provider refuses, each symbol keeps its
+  committed bars and the run fails on the failure budget rather than shipping a
+  broken dataset.
 - Stooq also rate-limits: "Exceeded the daily hits limit" comes back as HTTP 200
-  with that text as the body. Same handling — reported per symbol, then Yahoo.
-- **Yahoo's raw OHLC is what gets stored**, not `adjclose`. A candle has to be
-  the price that actually traded, and adjusted history is rewritten by every
-  later dividend — which would shift every curated drill window on every
-  refresh, producing a diff each month whether or not a new bar arrived.
+  with that text as the body. Same handling — reported per symbol, then on.
+- **A bad key says so.** Tiingo answers `{"detail": "Error: Invalid Token."}`,
+  which the fetcher turns into "Tiingo rejected the API key — check
+  TIINGO_API_KEY" rather than a bare `HTTP 401`.
+- **Raw OHLC is what gets stored**, never Tiingo's `adj*` fields or Yahoo's
+  `adjclose`. A candle has to be the price that actually traded, and adjusted
+  history is rewritten by every later dividend — which would shift every curated
+  drill window on every refresh, producing a diff each month whether or not a
+  new bar arrived.
 
 The financial statements in `public/data/financials/companies.json` are
 **fictional by design** and are not touched by any fetch script.

@@ -1,17 +1,26 @@
 #!/usr/bin/env node
-// ─── Real market-data fetcher (Stooq, falling back to Yahoo) ─────────────────
+// ─── Real market-data fetcher (Tiingo → Stooq → Yahoo) ──────────────────────
 //
 //   node scripts/fetch-data.mjs                 # all symbols, last ~10 years
 //   node scripts/fetch-data.mjs --symbols=AAPL,SPY
 //   node scripts/fetch-data.mjs --years=5
 //   node scripts/fetch-data.mjs --out=public/data
 //   node scripts/fetch-data.mjs --max-failures=3 --min-bars=2000   # CI guardrails
-//   node scripts/fetch-data.mjs --provider=yahoo                   # skip Stooq
+//   node scripts/fetch-data.mjs --provider=tiingo                  # one provider only
 //   node scripts/fetch-data.mjs --help
 //
-// TWO PROVIDERS, IN ORDER
-// -----------------------
-// 1. **Stooq** — keyless, free, oldest-first CSV:
+// THREE PROVIDERS, IN ORDER
+// -------------------------
+// 1. **Tiingo** — the reliable path, and the only one that works from CI. Needs
+//    a free API key in `TIINGO_API_KEY`; skipped entirely when unset.
+//
+//      https://api.tiingo.com/tiingo/daily/aapl/prices?startDate=2016-03-01&format=json
+//      Authorization: Token <key>
+//
+//    JSON array of `{date, open, high, low, close, volume, adjOpen, …}`,
+//    ascending by date.
+//
+// 2. **Stooq** — keyless, free, oldest-first CSV:
 //
 //      https://stooq.com/q/d/l/?s=aapl.us&i=d
 //
@@ -23,34 +32,46 @@
 //      Date,Open,High,Low,Close,Volume
 //      2016-12-27,115.80,117.80,115.61,117.26,18296855
 //
-// 2. **Yahoo** — used for any symbol Stooq does not hand back CSV:
+// 3. **Yahoo** — keyless, JSON:
 //
 //      https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=10y&interval=1d
 //
-//    Plain symbol, no `.us` suffix. JSON, with `chart.result[0].timestamp[]`
-//    alongside `chart.result[0].indicators.quote[0].{open,high,low,close,volume}`.
+//    Plain symbol, no `.us` suffix. `chart.result[0].timestamp[]` alongside
+//    `chart.result[0].indicators.quote[0].{open,high,low,close,volume}`.
 //
-// ⚠ WHY THE FALLBACK EXISTS — a real failure, not a hypothetical.
-//   The first live run of `.github/workflows/refresh-data.yml` got an HTML
-//   anti-bot page (`<!DOCTYPE html>… <meta name="robots" …> … <noscript>`)
-//   back from Stooq for all 27 symbols: Stooq serves a JavaScript challenge to
-//   GitHub Actions' datacenter IP ranges. Nothing bad shipped — the failure
-//   budget and carry-forward below did their job — but the refresh could not
-//   fetch anything. So this script now (a) asks with browser-like headers and
-//   (b) recognises that challenge page for what it is, stops retrying it (an IP
-//   block does not change its mind in six seconds) and asks Yahoo instead.
+// ⚠ WHY THERE ARE THREE — two live failures, not hypotheticals.
+//   Run 1 of `.github/workflows/refresh-data.yml`: Stooq answered all 27
+//   symbols with an HTML anti-bot page (`<!DOCTYPE html>… <noscript>`), because
+//   it serves a JavaScript challenge to GitHub Actions' datacenter IP ranges.
+//   Run 2, with the Yahoo fallback added: Yahoo answered HTTP 429 for all 27,
+//   for the same underlying reason. Nothing bad shipped either time — the
+//   failure budget and carry-forward below did their job — but a keyless
+//   provider cannot be relied on from a datacenter, and the answer to that is
+//   an API key, not a cleverer disguise.
 //
-// ⚠ NEITHER ENDPOINT IS REACHABLE FROM THE SANDBOX THIS WAS WRITTEN IN.
-//   The egress proxy returns 403 for stooq.com and finance.yahoo.com alike, so
-//   the HTTP calls have never run here. Everything that does not touch the
-//   network — URL construction, challenge detection, `parseStooqCsv`,
-//   `parseYahooChart`, the year trim — is exported and unit-tested in
+//   So: Tiingo first when a key is present, with the keyless two kept on as a
+//   backstop (they cost nothing to try, they work fine from a laptop, and they
+//   cover an expired key or an exhausted quota). With no key the behaviour is
+//   exactly what it was before Tiingo existed.
+//
+//   The key is read from `TIINGO_API_KEY` (or `--tiingo-key=`), sent in an
+//   `Authorization` header rather than the `&token=` query parameter Tiingo
+//   also accepts, and never printed. In CI it comes from a repository secret;
+//   it is never committed.
+//
+// ⚠ NO PROVIDER IS REACHABLE FROM THE SANDBOX THIS WAS WRITTEN IN.
+//   The egress proxy returns 403 for api.tiingo.com, stooq.com and
+//   finance.yahoo.com alike, so the HTTP calls have never run here. Everything
+//   that does not touch the network — URL construction, challenge detection,
+//   the retry and provider-order policies, `parseStooqCsv`, `parseYahooChart`,
+//   `parseTiingoDaily`, the year trim — is exported and unit-tested in
 //   `tests/fetchData.test.ts`, and those tests are the correctness story.
 //
 // RAW PRICES, NOT ADJUSTED
 // ------------------------
-// Yahoo also serves `indicators.adjclose[0].adjclose`. This script deliberately
-// keeps the RAW OHLC:
+// Tiingo serves `adjOpen/adjHigh/adjLow/adjClose` and Yahoo serves
+// `indicators.adjclose[0].adjclose`. This script deliberately keeps the RAW
+// OHLC from every provider:
 //   • the drills are chart-reading exercises, and a candle has to be the price
 //     that actually traded — an adjusted open/high/low is a synthetic number;
 //   • adjusted history is *rewritten* by every subsequent dividend and split, so
@@ -60,10 +81,12 @@
 // The cost is that multi-year returns across a dividend are understated. For a
 // pattern-recognition drill that is the right trade.
 //
-// Failure modes to expect (Stooq signals all of these with HTTP 200):
-//   • an HTML challenge page                → IP-blocked; falls through to Yahoo
-//   • "Exceeded the daily hits limit"       → rate limited; falls through to Yahoo
-//   • "No data" / a bare header row         → bad or delisted ticker
+// Failure modes to expect:
+//   • Tiingo `{"detail": "Error: Invalid Token."}` → bad or missing key, said so
+//   • Stooq HTML challenge page (HTTP 200!)       → IP-blocked; next provider
+//   • Stooq "Exceeded the daily hits limit" (200) → rate limited; next provider
+//   • Stooq "No data" / a bare header row         → bad or delisted ticker
+//   • Yahoo HTTP 429                              → IP-blocked; next provider
 //
 // Output is byte-compatible with the synthetic generator: one columnar JSON
 // per symbol in `public/data/ohlcv/{SYMBOL}.json` matching `OhlcvSeries`
@@ -73,9 +96,10 @@
 // `scripts/generate-data.mjs`) or 'stooq' (from this script) — because that is
 // what every consumer switches on, and it names the *pipeline*, not the host
 // that happened to answer. Which host actually answered is recorded per symbol
-// in `symbols[].source` ('stooq' | 'yahoo' | 'kept') and rolled up in
-// `providers`, so a refresh that quietly ran entirely off the fallback is
-// visible in the diff instead of being invisible.
+// in `symbols[].source` ('tiingo' | 'stooq' | 'yahoo' | 'kept', the last
+// meaning both/all providers failed and the committed bars were carried
+// forward) and rolled up in `providers`, so a refresh that quietly ran entirely
+// off a backstop is visible in the diff instead of being invisible.
 //
 // No dependencies beyond node builtins (uses global fetch — needs Node 18+).
 
@@ -271,6 +295,164 @@ export function yahooUrl(symbol, years = 10) {
 }
 
 /**
+ * The ISO start date to ask Tiingo for.
+ *
+ * Half a year of slack past the requested window, so the trim in
+ * `trimToYears` always has a full window to cut down to rather than being
+ * handed a series that is already a few sessions short.
+ *
+ * `nowMs` is injectable purely so the URL is testable; production callers let
+ * it default.
+ *
+ * @param {number} years
+ * @param {number} [nowMs]
+ */
+export function tiingoStartDate(years, nowMs = Date.now()) {
+  const span = (Number.isFinite(Number(years)) && Number(years) > 0 ? Number(years) : 10) + 0.5
+  return new Date(nowMs - span * 365.25 * 86400_000).toISOString().slice(0, 10)
+}
+
+/**
+ * Tiingo end-of-day price endpoint for one symbol.
+ *
+ * Note what is *not* here: the API key. Tiingo accepts `&token=…` on the query
+ * string, but a URL can end up in a log line, an error message or a CI
+ * transcript, so this script always sends the key in an `Authorization` header
+ * instead. Nothing that carries the key is ever printed.
+ *
+ * @param {string} symbol
+ * @param {number} [years]
+ * @param {number} [nowMs]
+ */
+export function tiingoUrl(symbol, years = 10, nowMs = Date.now()) {
+  return (
+    `https://api.tiingo.com/tiingo/daily/${encodeURIComponent(symbol.toLowerCase())}/prices` +
+    `?startDate=${tiingoStartDate(years, nowMs)}&format=json`
+  )
+}
+
+/**
+ * Pull Tiingo's own explanation out of an error body, if there is one.
+ *
+ * Tiingo answers a bad token, an unknown ticker or a throttled account with a
+ * JSON object carrying a single `detail` string — and it does so under a
+ * variety of status codes. Reading the body is how the log line ends up saying
+ * "Tiingo rejected the API key" instead of "HTTP 401".
+ *
+ * @param {unknown} payload  Response body, as text or as a parsed object.
+ * @returns {string | null}
+ */
+export function tiingoErrorDetail(payload) {
+  let doc = payload
+  if (typeof doc === 'string') {
+    const text = doc.trim()
+    if (!text.startsWith('{')) return null
+    try {
+      doc = JSON.parse(text)
+    } catch {
+      return null
+    }
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return null
+  const detail = doc.detail ?? doc.error ?? doc.message
+  return typeof detail === 'string' && detail.trim() !== '' ? detail.trim() : null
+}
+
+/** Turn a Tiingo `detail` string into a message that says what to do about it. */
+function tiingoErrorMessage(symbol, detail) {
+  if (/token|api\s*key|not\s*authoriz|unauthoriz|permission/i.test(detail)) {
+    return `${symbol}: Tiingo rejected the API key — check TIINGO_API_KEY (${detail})`
+  }
+  return `${symbol}: Tiingo returned an error — ${detail}`
+}
+
+/**
+ * Parse a Tiingo end-of-day response into an `OhlcvSeries`-shaped object.
+ *
+ * The happy path is a JSON array of
+ * `{date, open, high, low, close, volume, adjOpen, adjHigh, …}`, documented as
+ * ascending by date. "Documented as" is doing some work there, so rows are
+ * sorted by date here rather than trusted: the cost is a sort of ~2 500
+ * elements once per symbol, and the benefit is that a future change of
+ * ordering cannot silently produce a series whose timestamps run backwards and
+ * fail `validateSeries` at the far end of the pipeline.
+ *
+ * Uses the raw OHLC, never the `adj*` fields — same reasoning as the Yahoo
+ * path, spelled out at the top of this file.
+ *
+ * A zero-volume session is kept, not dropped: holidays and half-days are real
+ * bars with real prices, and the drills read prices, not volume.
+ *
+ * @param {string} symbol   Canonical upper-case symbol for the output series.
+ * @param {unknown} payload Response body, as text or as a parsed object.
+ * @returns {{symbol: string, interval: '1d', t: number[], o: number[], h: number[], l: number[], c: number[], v: number[]}}
+ * @throws if the payload is not a usable Tiingo response.
+ */
+export function parseTiingoDaily(symbol, payload) {
+  let doc = payload
+  if (typeof doc === 'string') {
+    const text = doc.trim()
+    if (!text) throw new Error(`${symbol}: empty response`)
+    if (looksLikeChallenge(text)) {
+      throw new Error(`${symbol}: Tiingo served an anti-bot HTML challenge, not JSON`)
+    }
+    const detail = tiingoErrorDetail(text)
+    if (detail) throw new Error(tiingoErrorMessage(symbol, detail))
+    try {
+      doc = JSON.parse(text)
+    } catch {
+      throw new Error(`${symbol}: unexpected response (not Tiingo JSON): ${text.slice(0, 120)}`)
+    }
+  }
+
+  const detail = tiingoErrorDetail(doc)
+  if (detail) throw new Error(tiingoErrorMessage(symbol, detail))
+  if (!Array.isArray(doc)) throw new Error(`${symbol}: Tiingo returned no price array`)
+  if (doc.length === 0) throw new Error(`${symbol}: Tiingo returned an empty price array`)
+
+  const rows = []
+  for (const row of doc) {
+    if (!row || typeof row !== 'object') continue
+    const day = toUtcDay(Date.parse(String(row.date)) / 1000)
+    if (!Number.isFinite(day)) continue
+
+    const O = Number(row.open), H = Number(row.high)
+    const L = Number(row.low), C = Number(row.close)
+    if (![O, H, L, C].every((x) => Number.isFinite(x) && x > 0)) continue
+
+    const V = Number(row.volume)
+    rows.push({
+      day,
+      o: round2(O),
+      // Same invariant repair as the other two providers.
+      h: round2(Math.max(H, O, C)),
+      l: round2(Math.min(L, O, C)),
+      c: round2(C),
+      v: Number.isFinite(V) && V > 0 ? Math.round(V) : 0,
+    })
+  }
+
+  // Sort is stable, so a repeated date keeps the order Tiingo sent and the
+  // first of the pair wins below — deterministic either way.
+  rows.sort((a, b) => a.day - b.day)
+
+  const t = [], o = [], h = [], l = [], c = [], v = []
+  for (const row of rows) {
+    if (t.length > 0 && row.day <= t[t.length - 1]) continue
+    t.push(row.day)
+    o.push(row.o)
+    h.push(row.h)
+    l.push(row.l)
+    c.push(row.c)
+    v.push(row.v)
+  }
+
+  if (t.length === 0) throw new Error(`${symbol}: no usable rows after parsing`)
+
+  return { symbol, interval: '1d', t, o, h, l, c, v }
+}
+
+/**
  * Parse a Yahoo v8 chart payload into an `OhlcvSeries`-shaped object.
  *
  * Accepts either the raw response text or an already-parsed object, so the
@@ -402,26 +584,34 @@ export function stooqUrl(symbol) {
  * A 404 is named rather than left as a bare status because it is the one
  * failure a retry can never fix.
  */
-async function getText(url, headers, symbol) {
+async function getRaw(url, headers) {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS)
   try {
     const res = await fetch(url, { signal: ctl.signal, headers })
-    if (res.status === 404) throw new Error(`${symbol}: 404 — unknown ticker`)
-    if (!res.ok) throw new Error(`${symbol}: HTTP ${res.status}`)
-    return await res.text()
+    return { ok: res.ok, status: res.status, text: await res.text() }
   } finally {
     clearTimeout(timer)
   }
+}
+
+async function getText(url, headers, symbol) {
+  const res = await getRaw(url, headers)
+  if (res.status === 404) throw new Error(`${symbol}: 404 — unknown ticker`)
+  if (!res.ok) throw new Error(`${symbol}: HTTP ${res.status}`)
+  return res.text
 }
 
 /**
  * The whole retry policy, as one pure decision.
  *
  * Three regimes, and the middle one is why this function exists:
- *   • **fatal** (`budget: 0`) — a 404. The ticker will not materialise.
+ *   • **fatal** (`budget: 0`) — a 404, or a rejected API key. Neither changes
+ *     its mind on a second ask, and a bad key asked 27 times over with
+ *     exponential backoff is four minutes spent confirming what the first
+ *     response already said.
  *   • **challenge** — an anti-bot HTML page. One more go on a short fuse, then
- *     the caller should try the other provider. The first live workflow run
+ *     the caller should try the next provider. The first live workflow run
  *     burned six minutes re-asking an IP block with doubling waits; a block is
  *     a standing decision, so waiting longer only wastes the job's time.
  *   • **transient** — everything else (5xx, rate limit, socket error), which
@@ -437,6 +627,7 @@ async function getText(url, headers, symbol) {
 export function retryPlanFor(message, attempt) {
   const text = String(message ?? '')
   if (/unknown ticker/.test(text)) return { budget: 0, waitMs: 0 }
+  if (/rejected the API key|no Tiingo API key/.test(text)) return { budget: 0, waitMs: 0 }
   if (/anti-bot/.test(text)) return { budget: CHALLENGE_ATTEMPTS, waitMs: CHALLENGE_BACKOFF_MS }
   return { budget: MAX_ATTEMPTS, waitMs: BACKOFF_MS * 2 ** (Math.max(1, attempt) - 1) }
 }
@@ -497,27 +688,95 @@ async function fetchYahoo(symbol, years) {
 }
 
 /**
- * Fetch one symbol, Stooq first and Yahoo as the fallback.
+ * Fetch and parse one symbol from Tiingo.
  *
- * Falls through on *any* Stooq failure, not only the challenge page: a rate
- * limit, a 404 against Stooq's `.us` symbology, or a network error are all
- * cases where the other provider may simply have the data. The reason is logged
- * either way, so a run that silently drifted onto the fallback is visible in
- * the job output as well as in the manifest.
+ * Unlike the keyless two, this client identifies itself honestly: the browser
+ * user-agent above exists only to get past the JS challenges the free HTML
+ * endpoints throw at scripts, and an authenticated API deserves a real client
+ * string instead.
  *
- * @returns {Promise<{series: object, source: 'stooq' | 'yahoo'}>}
+ * The error body is read on a failing status too, because Tiingo says *why* in
+ * the body — "Tiingo rejected the API key" is a message an operator can act on,
+ * and "HTTP 401" is not.
  */
-async function fetchSeries(symbol, years, provider) {
-  if (provider !== 'yahoo') {
+async function fetchTiingo(symbol, years, key) {
+  if (!key) throw new Error(`${symbol}: no Tiingo API key (set TIINGO_API_KEY)`)
+  return withRetries('tiingo', symbol, async () => {
+    const res = await getRaw(
+      tiingoUrl(symbol, years),
+      {
+        Authorization: `Token ${key}`,
+        Accept: 'application/json',
+        'User-Agent': 'tickerquest-data-fetch/2.0',
+      },
+    )
+    if (!res.ok) {
+      const detail = tiingoErrorDetail(res.text)
+      if (detail) throw new Error(tiingoErrorMessage(symbol, detail))
+      if (res.status === 404) throw new Error(`${symbol}: 404 — unknown ticker`)
+      throw new Error(`${symbol}: HTTP ${res.status}`)
+    }
+    return parseTiingoDaily(symbol, res.text)
+  })
+}
+
+const FETCHERS = {
+  tiingo: (symbol, years, key) => fetchTiingo(symbol, years, key),
+  stooq: (symbol) => fetchStooq(symbol),
+  yahoo: (symbol, years) => fetchYahoo(symbol, years),
+}
+
+/**
+ * The order to try providers in.
+ *
+ * With a key, Tiingo goes first and the keyless two stay on as a backstop: they
+ * cost nothing to try and cover the case where the key expires or the free-tier
+ * quota runs out mid-run. Without a key the behaviour is exactly what it was.
+ *
+ * Both keyless providers are known to block GitHub's datacenter IP ranges —
+ * Stooq with a JavaScript challenge, Yahoo with a flat HTTP 429 — which is the
+ * whole reason the keyed provider exists. Locally they usually work fine.
+ *
+ * Exported so the policy can be asserted without a network.
+ *
+ * @param {'auto'|'tiingo'|'stooq'|'yahoo'} provider
+ * @param {boolean} hasKey
+ * @returns {Array<'tiingo'|'stooq'|'yahoo'>}
+ */
+export function providerChain(provider, hasKey) {
+  if (provider && provider !== 'auto') return [provider]
+  return hasKey ? ['tiingo', 'stooq', 'yahoo'] : ['stooq', 'yahoo']
+}
+
+/** Strip a leading "SYMBOL: " so a message is not prefixed twice. */
+function detailOf(message, symbol) {
+  return message.startsWith(`${symbol}: `) ? message.slice(symbol.length + 2) : message
+}
+
+/**
+ * Fetch one symbol, walking the provider chain until one answers.
+ *
+ * Falls through on *any* failure, not only a challenge page: a rate limit, a
+ * 404 against one provider's symbology, or a network error are all cases where
+ * the next provider may simply have the data. Every hand-off is logged, so a
+ * run that quietly drifted onto a backstop is visible in the job output as well
+ * as in the manifest.
+ *
+ * @returns {Promise<{series: object, source: 'tiingo' | 'stooq' | 'yahoo'}>}
+ */
+async function fetchSeries(symbol, years, chain, key) {
+  let lastErr
+  for (let i = 0; i < chain.length; i++) {
+    const name = chain[i]
     try {
-      return { series: await fetchStooq(symbol), source: 'stooq' }
+      return { series: await FETCHERS[name](symbol, years, key), source: name }
     } catch (err) {
-      if (provider === 'stooq') throw err
-      const detail = err.message.startsWith(`${symbol}: `) ? err.message.slice(symbol.length + 2) : err.message
-      console.warn(`    stooq failed (${detail}) — trying yahoo`)
+      lastErr = err
+      const next = chain[i + 1]
+      if (next) console.warn(`    ${name} failed (${detailOf(err.message, symbol)}) — trying ${next}`)
     }
   }
-  return { series: await fetchYahoo(symbol, years), source: 'yahoo' }
+  throw lastErr
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -536,9 +795,12 @@ function parseArgs(argv) {
     // a truncated history; silently shipping it would invalidate every drill
     // window curated against the longer one.
     minBars: 0,
-    // 'auto' tries Stooq then Yahoo; the single-provider values exist for
-    // diagnosing which host is unhappy without waiting out the other one.
+    // 'auto' walks the whole chain; the single-provider values exist for
+    // diagnosing which host is unhappy without waiting out the others.
     provider: 'auto',
+    // Env by default so CI can pass it as a secret and it never reaches argv
+    // (where it would show up in `ps` and in any command echo).
+    tiingoKey: process.env.TIINGO_API_KEY ?? '',
     help: false,
   }
   for (const arg of argv) {
@@ -552,19 +814,27 @@ function parseArgs(argv) {
     else if (key === 'max-failures') opts.maxFailures = Number(val)
     else if (key === 'min-bars') opts.minBars = Number(val)
     else if (key === 'provider') opts.provider = val.trim().toLowerCase()
+    else if (key === 'tiingo-key') opts.tiingoKey = val.trim()
   }
   return opts
 }
 
-const USAGE = `Fetch real daily bars into public/data (Stooq, falling back to Yahoo).
+const USAGE = `Fetch real daily bars into public/data.
+
+Providers are tried in order: Tiingo (when TIINGO_API_KEY is set), then Stooq,
+then Yahoo. The keyless two block datacenter IP ranges, so a CI run without a
+key will fail; locally they usually work.
 
   --symbols=AAPL,SPY     symbols to fetch (default: the 27 bundled ones)
   --years=10             history to keep
   --out=public/data      output directory
   --max-failures=3       how many symbols may fail before the run fails
   --min-bars=2000        reject a series shorter than this, keep the old one
-  --provider=auto        auto | stooq | yahoo
-  --help                 this message`
+  --provider=auto        auto | tiingo | stooq | yahoo
+  --tiingo-key=…         overrides TIINGO_API_KEY (prefer the env var)
+  --help                 this message
+
+Free Tiingo key: https://www.tiingo.com → sign up → API token.`
 
 /**
  * Manifest entry for a symbol whose fetch failed, taken from the file already
@@ -588,21 +858,33 @@ function keepExisting(ohlcvDir, symbol) {
 }
 
 async function main() {
-  const { symbols, years, out, maxFailures, minBars, provider, help } = parseArgs(process.argv.slice(2))
+  const { symbols, years, out, maxFailures, minBars, provider, tiingoKey, help } =
+    parseArgs(process.argv.slice(2))
   if (help) {
     console.log(USAGE)
     return
   }
-  if (!['auto', 'stooq', 'yahoo'].includes(provider)) {
-    console.error(`Unknown --provider=${provider} (expected auto, stooq or yahoo)`)
+  if (!['auto', 'tiingo', 'stooq', 'yahoo'].includes(provider)) {
+    console.error(`Unknown --provider=${provider} (expected auto, tiingo, stooq or yahoo)`)
     process.exitCode = 1
     return
   }
+  if (provider === 'tiingo' && !tiingoKey) {
+    console.error('--provider=tiingo needs a key: set TIINGO_API_KEY or pass --tiingo-key=')
+    process.exitCode = 1
+    return
+  }
+  const chain = providerChain(provider, Boolean(tiingoKey))
   const ohlcvDir = join(out, 'ohlcv')
   mkdirSync(ohlcvDir, { recursive: true })
 
-  const via = provider === 'auto' ? 'Stooq, falling back to Yahoo' : provider
-  console.log(`Fetching ${symbols.length} symbol(s) via ${via} (~${years}y daily)…`)
+  console.log(`Fetching ${symbols.length} symbol(s) via ${chain.join(' → ')} (~${years}y daily)…`)
+  if (!tiingoKey && provider === 'auto') {
+    console.warn(
+      'No TIINGO_API_KEY — using the keyless providers only. Both block datacenter\n' +
+      'IP ranges, so this will fail on a CI runner. See README → Market data.',
+    )
+  }
 
   const manifestSymbols = []
   const failed = []
@@ -611,7 +893,7 @@ async function main() {
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i]
     try {
-      const { series: full, source } = await fetchSeries(symbol, years, provider)
+      const { series: full, source } = await fetchSeries(symbol, years, chain, tiingoKey)
       const series = trimToYears(full, years)
       if (minBars > 0 && series.t.length < minBars) {
         throw new Error(`${symbol}: only ${series.t.length} bars, expected at least ${minBars}`)
@@ -660,7 +942,7 @@ async function main() {
 
   // Roll-up of who actually answered, so `git diff manifest.json` shows at a
   // glance that (say) every symbol came off the fallback this month.
-  const providers = { stooq: 0, yahoo: 0, kept: 0 }
+  const providers = { tiingo: 0, stooq: 0, yahoo: 0, kept: 0 }
   for (const entry of manifestSymbols) providers[entry.source] = (providers[entry.source] ?? 0) + 1
 
   writeFileSync(
@@ -669,7 +951,10 @@ async function main() {
   )
 
   console.log(`\nWrote ${manifestSymbols.length} series to ${ohlcvDir}`)
-  console.log(`Sources: ${providers.stooq} stooq · ${providers.yahoo} yahoo · ${providers.kept} kept`)
+  console.log(
+    `Sources: ${providers.tiingo} tiingo · ${providers.stooq} stooq · ` +
+    `${providers.yahoo} yahoo · ${providers.kept} kept`,
+  )
   if (failed.length) {
     console.error(`Failed: ${failed.join(', ')} — re-run for just those with --symbols=`)
     if (dropped.length > 0) {

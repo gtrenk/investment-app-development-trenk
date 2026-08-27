@@ -32,7 +32,7 @@ Putting it on a real URL — static hosting, the quote proxy, real market data, 
 | `npm test` | Vitest suites for all core engines |
 | `npm run e2e` | Playwright end-to-end tests (PWA/offline/flows) |
 | `node scripts/generate-data.mjs` | Regenerate the bundled synthetic chart data (deterministic) |
-| `node scripts/fetch-data.mjs` | **Replace synthetic data with real history** — Stooq, falling back to Yahoo (needs outbound network) |
+| `node scripts/fetch-data.mjs` | **Replace synthetic data with real history** — Tiingo, falling back to Stooq then Yahoo |
 | `node scripts/validate-data.mjs` | Gate the dataset: manifest ↔ files, OHLC invariants, minimum bar count |
 | `node scripts/curate-windows.mjs --report` | Re-derive every drill window from `public/data` and print the per-class yield |
 | `node scripts/render-windows.mjs --n=15` | Render a sample of curated windows to PNG for an eyeball check |
@@ -54,6 +54,30 @@ raises the daily goal, and with it the SRS caps (5 → 15 new cards a day, 30 �
 reviews) so the flashcards keep up with the reading. Nothing about a session is
 persisted: leave it at any point and it simply ends — starting again replans
 from whatever is genuinely still undone that day.
+
+## Weak spots
+
+Every quiz question you get wrong on the first try — in a lesson **or** in the
+placement test — is banked with the unit and lesson it came from and a counter
+that climbs each time it bites you again. Once **three** are waiting, Home's
+*Today* list grows one amber row: **"Fix my weak spots — N queued"**. That runs
+a short remediation session at **`/weakspots`**: up to eight of the oldest
+unfixed questions, re-asked with their four choices deterministically reshuffled
+(so "it was the third one" cannot answer them), and the explanation shown after
+*every* answer, right or wrong — this is remediation, not an exam. Getting one
+right retires it and pays **+4 XP**; getting it wrong again just moves the
+counter. Units whose flashcards keep lapsing (two lapses or more, due inside a
+week) get a pointer step at the end that hands you to the review queue rather
+than re-implementing SM-2 in a second place.
+
+**`/insights`** — "Where you are weak", reachable from the drill-stats footer
+and from the session itself — ranks every unit you have evidence for by a
+weighted weakness score, with a bar per unit for first-try accuracy plus the
+open misses and lapsing cards behind it, and taps through to the session.
+
+None of this touches the daily goal or the streak: those still mean "I did
+today's study", and quietly redefining them to include remediation would
+devalue every streak already earned.
 
 ## Case studies
 
@@ -121,18 +145,38 @@ windows they play from `public/data/drills/windows.json`.
 
 **Refreshing with real market data is one click.** Actions → **Refresh market
 data** → *Run workflow*. A GitHub runner has the outbound access this project's
-build sandbox does not, so it fetches ~10 years of real daily bars (Stooq
-first, Yahoo as the fallback), re-curates every drill window against them, runs
-the content tests and commits to `main` — which triggers the Pages deploy. The
-same workflow runs on its own at 06:00 UTC on the 1st of each month, and commits
-nothing at all when nothing changed. See `.github/workflows/refresh-data.yml`.
+build sandbox does not, so it fetches ~10 years of real daily bars, re-curates
+every drill window against them, runs the content tests and commits to `main` —
+which triggers the Pages deploy. The same workflow runs on its own at 06:00 UTC
+on the 1st of each month, and commits nothing at all when nothing changed. See
+`.github/workflows/refresh-data.yml`.
 
-Two providers because one was not enough: Stooq serves a JavaScript anti-bot
-challenge to GitHub's datacenter IPs, which is exactly what the first live run
-hit. The fetcher recognises that page, stops retrying it and asks Yahoo instead;
+### One-time setup: a free Tiingo key (~3 minutes)
+
+The refresh needs an API key, and here is the honest reason. The first live run
+used Stooq, which answered all 27 symbols with a JavaScript anti-bot page — it
+challenges GitHub's datacenter IP ranges. The second added a Yahoo fallback;
+Yahoo answered HTTP 429 for all 27, same underlying reason. Free keyless
+endpoints simply do not serve datacenters. A key fixes it because a key
+identifies the caller instead of its IP.
+
+1. Sign up free at **[tiingo.com](https://www.tiingo.com)** — the free tier is
+   far more than 27 symbols once a month needs.
+2. Copy the token from your **account → API → Token** page.
+3. In this repo: **Settings → Secrets and variables → Actions → New repository
+   secret**, named `TIINGO_API_KEY`, with the token as its value.
+4. **Actions → Refresh market data → Run workflow.**
+
+The key lives only in GitHub's encrypted secrets. It is never committed, never
+printed, and never put in a request URL (Tiingo accepts `&token=`; this fetcher
+sends an `Authorization` header instead, because URLs end up in logs). Without
+the secret the workflow still runs, warns, and falls back to the keyless
+providers — which is useful locally and will fail in CI.
+
 `public/data/manifest.json` records per symbol which host actually answered
-(`stooq` / `yahoo` / `kept`, the last meaning the previous bars were carried
-forward because both failed).
+(`tiingo` / `stooq` / `yahoo` / `kept`, the last meaning every provider failed
+and the previous bars were carried forward), so a refresh that quietly ran off a
+backstop is visible in the diff.
 
 The committed data is **synthetic but realistic** (a seeded regime-switching
 model with fat tails, `scripts/generate-data.mjs`) so the whole pipeline builds,
@@ -176,6 +220,7 @@ src/core/       Pure TypeScript engines — no React, no DOM (portable to React 
   drills/       Drill selection, outcome grading, calibration stats, window-doc parsing
   market/       Series slicing/validation helpers
   speech/       Markdown → speakable text (notation, bullets, cloze blanks)
+  weakspots/    Mistake bank, per-unit accuracy insight, re-ask shuffle, session plan
   storage/      StorageAdapter interface + versioned keys
   sync/         Cloud-sync protocol (fetch injected) + the sync-code alphabet
 src/content/    Curriculum authored as typed data (units, drill labels + window fallback)
