@@ -18,6 +18,8 @@ import { ReviewScreen } from './screens/ReviewScreen'
 import { DrillsScreen } from './screens/DrillsScreen'
 import { DrillPlayer } from './screens/DrillPlayer'
 import { DrillStatsScreen } from './screens/DrillStatsScreen'
+import { WeakSpotsScreen } from './screens/WeakSpotsScreen'
+import { InsightsScreen } from './screens/InsightsScreen'
 import { CASE_ROUTES } from './screens/caseRoutes'
 import { PortfolioScreen } from './screens/PortfolioScreen'
 import { TradeScreen } from './screens/TradeScreen'
@@ -188,6 +190,10 @@ export default function App() {
           <Route path="/placement" element={<PlacementScreen />} />
           <Route path="/drill" element={<DrillPlayer />} />
           <Route path="/drill-stats" element={<DrillStatsScreen />} />
+          {/* Both focus screens: a remediation session is as single-minded as a
+              lesson, and its stats page is where it hands you off to. */}
+          <Route path="/weakspots" element={<WeakSpotsScreen />} />
+          <Route path="/insights" element={<InsightsScreen />} />
           <Route path="/trade" element={<TradeScreen />} />
           {CASE_ROUTES.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
         </Route>

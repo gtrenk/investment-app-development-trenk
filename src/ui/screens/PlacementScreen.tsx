@@ -70,6 +70,7 @@ function lessonCount(unitId: UnitId): number {
 export function PlacementScreen() {
   const navigate = useNavigate()
   const applyPlacement = useAppStore((s) => s.applyPlacement)
+  const recordQuizMiss = useAppStore((s) => s.recordQuizMiss)
   const alreadyPassed = useAppStore((s) => s.placement.passedUnits)
 
   const listening = useAppStore((s) => s.settings.readAloud.enabled)
@@ -163,6 +164,15 @@ export function PlacementScreen() {
     const nextAnswers = { ...answers, [item.id]: picked }
     setAnswers(nextAnswers)
     setPicked(null)
+
+    // A missed exam question is a missed question: it enters the mistake bank
+    // exactly like a missed lesson quiz item, so "fix my weak spots" can later
+    // re-ask it. Recorded here, on the tap, rather than on the results screen —
+    // this is the one place each answer is submitted exactly once, and a
+    // learner who abandons the test halfway still keeps what it learned about
+    // them. Silent, of course: the test says nothing about correctness, and
+    // writing a record the learner cannot see does not change that.
+    if (picked !== item.answerIdx) recordQuizMiss(item.id)
 
     if (phase.index + 1 < items.length) {
       setPhase({ kind: 'quiz', unitId: phase.unitId, index: phase.index + 1 })

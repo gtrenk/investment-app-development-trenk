@@ -45,6 +45,16 @@ export const STORAGE_KEYS = {
    */
   placement: 'tq.v1.placement',
   /**
+   * The mistake bank: one record per quiz item ever answered wrongly, plus
+   * which of them have since been fixed. See @core/weakspots/bank.
+   *
+   * Its own key rather than a corner of `progress` for the same reason as
+   * `placement`: it is written on a different rhythm (every wrong answer, and
+   * every fix) from the completed-lessons map, and a per-key sync means a
+   * device that only drilled weak spots pushes only this blob.
+   */
+  weakspots: 'tq.v1.weakspots',
+  /**
    * Cloud-sync bookkeeping for this profile *on this device*: what each key's
    * last local change was and what the server has accepted. Profile-scoped so
    * deleting a profile takes it along, but never itself synced — see

@@ -1,4 +1,4 @@
-import type { Lesson, LessonId, Unit, UnitId } from '@core/types'
+import type { Lesson, LessonId, QuizItem, Unit, UnitId } from '@core/types'
 import { u01 } from './u01-foundations'
 import { u02 } from './u02-mechanics'
 import { u03 } from './u03-income-statement'
@@ -36,6 +36,22 @@ export function getUnit(id: UnitId): Unit | undefined {
 /** Look up a lesson by id, e.g. 'u01-l01'. Returns undefined if it does not exist. */
 export function getLesson(id: LessonId): Lesson | undefined {
   return LESSON_BY_ID.get(id)
+}
+
+const QUIZ_ITEM_BY_ID = new Map<string, QuizItem>(
+  ALL_LESSONS.flatMap((lesson) => lesson.quiz.map((item) => [item.id, item] as const)),
+)
+
+/**
+ * Look up one quiz item by id, e.g. 'u05-l03-q2'.
+ *
+ * The mistake bank stores ids, not questions — an item's wording belongs to the
+ * curriculum and must be free to change under a saved record. `undefined` here
+ * means the item has left the curriculum, and the weak-spot session skips it
+ * rather than inventing a question.
+ */
+export function getQuizItem(id: string): QuizItem | undefined {
+  return QUIZ_ITEM_BY_ID.get(id)
 }
 
 export { u01, u02, u03, u04, u05, u06, u07, u08, u09, u10, u11, u12, u13, u14 }

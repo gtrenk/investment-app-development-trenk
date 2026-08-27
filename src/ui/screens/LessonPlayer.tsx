@@ -453,11 +453,20 @@ export function LessonPlayer() {
             index={step - blockCount}
             total={quizCount}
             onAnswered={(right) => {
+              const item = lesson.quiz[step - blockCount]
               if (right) {
-                firstTryIds.current.add(lesson.quiz[step - blockCount].id)
+                firstTryIds.current.add(item.id)
                 setFirstTryCorrect((n) => n + 1)
+              } else {
+                // Banked immediately, unlike the XP for a correct answer, which
+                // waits for the completion screen. The two are not symmetric on
+                // purpose: XP is a reward for finishing the lesson, but a missed
+                // question is a fact about the learner the moment it happens —
+                // and abandoning the lesson here is exactly when they most need
+                // it queued for later. See @core/weakspots/bank.
+                answerQuiz(item.id, false)
               }
-              speakFeedback(lesson.quiz[step - blockCount], right)
+              speakFeedback(item, right)
             }}
             onNext={advance}
           />

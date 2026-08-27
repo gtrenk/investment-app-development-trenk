@@ -32,6 +32,9 @@ import {
   XP_REVIEW_SESSION,
   levelFor,
 } from '@core/gamification/xp'
+import { emptyWeakSpots, recordMiss, resolveMiss, sanitizeWeakSpots } from '@core/weakspots/bank'
+import type { WeakSpotsState } from '@core/weakspots/bank'
+import { resolveAward } from '@core/weakspots/session'
 import { emptyPlacementRecord, sanitizePlacementRecord } from '@core/placement/record'
 import type { PlacementRecord } from '@core/placement/record'
 import { creditPlacement } from '@core/placement/apply'
@@ -291,6 +294,8 @@ export interface AppState {
   settings: Settings
   /** What the placement test credited, and whether its offer was dismissed. */
   placement: PlacementRecord
+  /** The mistake bank: every quiz item ever missed, and which are still open. */
+  weakSpots: WeakSpotsState
   pendingCelebrations: Celebration[]
 
   /**
@@ -301,6 +306,14 @@ export interface AppState {
   hydrate: (force?: boolean) => Promise<void>
   completeLesson: (lessonId: LessonId) => void
   answerQuiz: (itemId: string, correctFirstTry: boolean) => void
+  /**
+   * Bank one wrong answer. `answerQuiz` calls it for a missed lesson question;
+   * the placement test calls it directly (its exam flow has no first-try XP to
+   * award), and so does a weak-spot re-ask that goes wrong again.
+   */
+  recordQuizMiss: (itemId: string) => void
+  /** Retire one banked mistake and pay XP_WEAKSPOT — once per fix, ever. */
+  resolveWeakSpot: (itemId: string) => void
   gradeCard: (cardId: CardId, grade: Grade) => void
   finishReviewSession: (cardCount: number) => void
   recordDrillResult: (result: DrillResult) => void
@@ -409,6 +422,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   watchlist: [],
   settings: defaultSettings(),
   placement: emptyPlacementRecord(),
+  weakSpots: emptyWeakSpots(),
   pendingCelebrations: [],
 
   async hydrate(force = false) {
@@ -416,7 +430,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Point every read and write below at the active profile's namespace. The
     // keys the store asks for never change — only where they land.
     storage = await activeProfileStorage()
-    const [progress, srs, game, drills, portfolio, orders, watchlist, settings, placement] =
+    const [progress, srs, game, drills, portfolio, orders, watchlist, settings, placement, weakSpots] =
       await Promise.all([
         storage.get<ProgressState>(STORAGE_KEYS.progress),
         storage.get<Record<CardId, CardState>>(STORAGE_KEYS.srs),
@@ -427,6 +441,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storage.get<string[]>(STORAGE_KEYS.watchlist),
         storage.get<unknown>(STORAGE_KEYS.settings),
         storage.get<unknown>(STORAGE_KEYS.placement),
+        storage.get<unknown>(STORAGE_KEYS.weakspots),
       ])
     set({
       progress: { ...emptyProgress(), ...(progress ?? {}) },
@@ -440,6 +455,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       watchlist: Array.isArray(watchlist) ? watchlist.filter((s) => typeof s === 'string') : [],
       settings: sanitizeSettings(settings),
       placement: sanitizePlacementRecord(placement),
+      weakSpots: sanitizeWeakSpots(weakSpots),
       ready: true,
     })
   },
@@ -479,7 +495,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   answerQuiz(itemId, correctFirstTry) {
     const state = get()
-    if (!correctFirstTry) return
+    // A wrong first try is not "nothing happened" any more: it is the event the
+    // mistake bank exists to hear about. Still no XP, and still no settle —
+    // missing a question earns neither.
+    if (!correctFirstTry) {
+      get().recordQuizMiss(itemId)
+      return
+    }
     if (state.progress.firstTryCorrect.includes(itemId)) return // XP once per item, ever
 
     const today = appClock.today()
@@ -494,6 +516,65 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = { progress, srs: state.srs, game, drillHistory: state.drillHistory }
     set({ ...next, pendingCelebrations: [...state.pendingCelebrations, ...out] })
     persist(next)
+  },
+
+  /**
+   * Bank one wrong answer, wherever it came from.
+   *
+   * Writes only the weak-spots key: a miss changes no XP, no day log and no
+   * streak, so rewriting `progress`/`game`/`srs` alongside it would be four
+   * pointless IndexedDB puts and four keys needlessly marked dirty for sync.
+   *
+   * An id the bank refuses (not a curriculum item — a case question, say)
+   * leaves the state identical by reference and is dropped here, so a stray
+   * call cannot spin the store or the syncer.
+   */
+  recordQuizMiss(itemId) {
+    const state = get()
+    const weakSpots = recordMiss(state.weakSpots, itemId, appClock.today())
+    if (weakSpots === state.weakSpots) return
+    set({ weakSpots })
+    write(STORAGE_KEYS.weakspots, weakSpots)
+  },
+
+  /**
+   * Retire one banked mistake: the learner has just answered it correctly in a
+   * weak-spot session.
+   *
+   * XP comes from `resolveAward`, which reads the *transition* rather than the
+   * caller's intent — an item that was already resolved (a double tap, a
+   * remount) pays nothing and writes nothing.
+   *
+   * DELIBERATELY NOT TOUCHED: the day log. Fixing weak spots does not count as
+   * a lesson, a review or a drill, so it neither advances nor satisfies the
+   * daily goal and cannot on its own extend a streak. The goal means "you did
+   * today's study"; remediation is extra, and quietly redefining a streak to
+   * include it would devalue every streak already earned. `settle` still runs
+   * so the XP can trip a level-up or a badge, exactly like case XP does.
+   */
+  resolveWeakSpot(itemId) {
+    const state = get()
+    const today = appClock.today()
+    const weakSpots = resolveMiss(state.weakSpots, itemId, today)
+    const xp = resolveAward(state.weakSpots, weakSpots)
+    if (xp === 0) return
+
+    const out: Celebration[] = []
+    let game = awardXp(state.game, xp, today, out)
+    game = settle(
+      state.progress,
+      state.srs,
+      state.drillHistory,
+      state.portfolio,
+      game,
+      today,
+      out,
+      state.settings.pace,
+    )
+
+    set({ weakSpots, game, pendingCelebrations: [...state.pendingCelebrations, ...out] })
+    persist({ progress: state.progress, srs: state.srs, game, drillHistory: state.drillHistory })
+    write(STORAGE_KEYS.weakspots, weakSpots)
   },
 
   gradeCard(cardId, grade) {
@@ -940,6 +1021,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       openOrders: [],
       watchlist: [],
       placement: emptyPlacementRecord(),
+      weakSpots: emptyWeakSpots(),
       pendingCelebrations: [],
     })
     const wiped = [
@@ -954,6 +1036,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       // ledger must go with the progress it credited, or a re-apply would be
       // silently skipped as "already paid".
       STORAGE_KEYS.placement,
+      // Mistakes belong to the progress that made them: a wiped profile has
+      // never answered a question, so it has nothing to fix.
+      STORAGE_KEYS.weakspots,
     ]
     await Promise.all(wiped.map((key) => storage.del(key)))
     // A reset is a change like any other: mark the keys dirty so the cloud copy

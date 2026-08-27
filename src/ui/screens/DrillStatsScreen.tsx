@@ -254,6 +254,25 @@ export function DrillStatsScreen() {
         useful if the confidence attached to it is honest.
       </p>
 
+      {/* Calibration is one half of "how am I doing"; the curriculum is the
+          other, and it has its own page rather than a second chart wedged into
+          this one. */}
+      <Link
+        to="/insights"
+        data-testid="drill-stats-insights-link"
+        className="flex min-h-[52px] w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900 px-5 font-bold text-slate-100 active:bg-slate-800"
+      >
+        <span className="text-left">
+          Accuracy by unit
+          <span className="block text-xs font-normal text-slate-500">
+            Where the curriculum is still shaky
+          </span>
+        </span>
+        <span aria-hidden className="text-slate-600">
+          →
+        </span>
+      </Link>
+
       <Link
         to="/drills"
         className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-5 font-bold text-slate-100 active:bg-slate-800"

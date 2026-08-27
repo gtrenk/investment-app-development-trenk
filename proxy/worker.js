@@ -118,6 +118,7 @@ export const SYNC_BLOB_KEYS = [
   'tq.v1.settings',
   'tq.v1.cases',
   'tq.v1.placement',
+  'tq.v1.weakspots',
   'profileMeta',
 ]
 

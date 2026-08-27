@@ -17,6 +17,16 @@ export const XP_DRILL_CORRECT_BONUS = 10
 /** Attaching a written rationale to a paper trade. */
 export const XP_JOURNAL_NOTE = 5
 /**
+ * Fixing one banked mistake in a weak-spot session.
+ *
+ * Twice a quiz item, because re-earning a question you once got wrong is worth
+ * more than getting an easy one right the first time — and still small, because
+ * the item is one the learner has already seen the answer to. Paid once per
+ * item per time it is fixed (the bank's resolve transition is the guard), so
+ * grinding the same question cannot farm it.
+ */
+export const XP_WEAKSPOT = 4
+/**
  * Testing out of one unit in the placement test.
  *
  * Flat, and deliberately far below what studying the unit pays (8–10 lessons

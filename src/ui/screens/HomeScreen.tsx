@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { REVIEW_GOAL_CAP } from '@core/gamification/streak'
 import { badgeById } from '@core/gamification/badges'
 import { answeredToday, drillKindForDay } from '@core/drills/engine'
+import { openMissCount as countOpenMisses } from '@core/weakspots/bank'
+import { WEAKSPOT_HOME_THRESHOLD } from '@core/weakspots/session'
 import { buildSessionPlan, sessionEstimateMinutes, stepLabel } from '@state/session'
 import { useAppStore, appClock } from '@state/useAppStore'
 import { activeProfile, useProfilesStore } from '@state/profiles'
@@ -40,22 +42,30 @@ interface TaskProps {
   soon?: boolean
   /** When set the whole row becomes a tap target for that route. */
   to?: string
+  /** Extra hook for a row a spec needs to find by name, not by position. */
+  testId?: string
+  /** Accent for the tick — the weak-spot row is amber, not another green. */
+  accent?: 'emerald' | 'amber'
 }
 
-function TaskRow({ done, label, detail, soon = false, to }: TaskProps) {
+function TaskRow({ done, label, detail, soon = false, to, testId, accent = 'emerald' }: TaskProps) {
   const body = (
     <>
       <span
         aria-hidden
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs ${
           done
-            ? 'border-emerald-400 bg-emerald-400 text-slate-950'
+            ? accent === 'amber'
+              ? 'border-amber-400 bg-amber-400 text-slate-950'
+              : 'border-emerald-400 bg-emerald-400 text-slate-950'
             : soon
               ? 'border-slate-700 text-slate-600'
-              : 'border-slate-600 text-transparent'
+              : accent === 'amber'
+                ? 'border-amber-400/70 text-amber-300'
+                : 'border-slate-600 text-transparent'
         }`}
       >
-        {done ? '✓' : soon ? '·' : ''}
+        {done ? '✓' : soon ? '·' : accent === 'amber' ? '!' : ''}
       </span>
       <div className="min-w-0 flex-1">
         <p className={`text-sm font-medium ${done ? 'text-slate-400 line-through' : 'text-slate-100'}`}>
@@ -72,7 +82,7 @@ function TaskRow({ done, label, detail, soon = false, to }: TaskProps) {
   )
 
   return (
-    <li data-testid="today-task" data-done={done}>
+    <li data-testid={testId ?? 'today-task'} data-done={done}>
       {to ? (
         <Link to={to} className="-mx-2 flex min-h-[44px] items-center gap-3 rounded-xl px-2 py-2.5 active:bg-slate-800/60">
           {body}
@@ -187,6 +197,9 @@ export function HomeScreen() {
   const drillHistory = useAppStore((s) => s.drillHistory)
 
   const pace = useAppStore((s) => s.settings.pace)
+  // Subscribed to the count, not the bank: Home re-renders on an XP tick often
+  // enough without also re-rendering every time a record's miss counter moves.
+  const openMissCount = useAppStore((s) => countOpenMisses(s.weakSpots))
 
   const today = appClock.today()
   const drillDone = answeredToday(drillHistory, today)
@@ -284,6 +297,22 @@ export function HomeScreen() {
                   : `${KIND_COPY[drillKindForDay(today, true)].title} — one chart, one call`
             }
           />
+          {/* Last, and only once the bank is worth opening. Below the threshold
+              a one-question detour costs more attention than it buys, and a row
+              that flickers in and out after every missed question would train
+              the learner to ignore this list. It carries no `today-task` id
+              because it is NOT part of the daily goal — see the store's
+              `resolveWeakSpot`. */}
+          {openMissCount >= WEAKSPOT_HOME_THRESHOLD && (
+            <TaskRow
+              done={false}
+              accent="amber"
+              testId="home-weakspots"
+              to="/weakspots"
+              label="Fix my weak spots"
+              detail={`${openMissCount} queued · questions you have missed`}
+            />
+          )}
         </ul>
         {reviewTarget > 0 && (
           <div className="pb-1 pt-2">
